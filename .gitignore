@@ -1,0 +1,25 @@
+# Binary
+firewatch-server
+
+# Environment
+.env
+.env.local
+
+# PGP keys (keep these secure)
+*.asc
+*.gpg
+*.pgp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test artifacts
+*.test
+coverage.out

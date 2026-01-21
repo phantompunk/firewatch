@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Submit Report - Firewatch Reports</title>
+    <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+    <main class="container">
+        <header>
+            <a href="/" class="back-link">&larr; Back to Home</a>
+            <h1>Submit Anonymous Report</h1>
+            <p class="privacy-note">
+                Your privacy is protected. We don't log IP addresses, use cookies, or track you.
+            </p>
+        </header>
+
+        <form id="report-form" action="/api/submit" method="POST" enctype="multipart/form-data">
+
+            <section class="form-section">
+                <h2>What did you observe? <span class="required">*</span></h2>
+                <div class="field">
+                    <label for="description">Describe the activity in detail</label>
+                    <textarea
+                        id="description"
+                        name="description"
+                        rows="6"
+                        required
+                        placeholder="Describe what you saw, including any relevant details about the activity..."
+                    ></textarea>
+                    <p class="field-hint">This is the only required field. Be as specific as you feel comfortable.</p>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>Details (Optional)</h2>
+                <p class="section-hint">All fields below are optional. Provide what you can.</p>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label for="member_count">Estimated number of people</label>
+                        <input
+                            type="text"
+                            id="member_count"
+                            name="member_count"
+                            placeholder="e.g., 4-5 people"
+                        >
+                    </div>
+
+                    <div class="field">
+                        <label for="activity_type">Type of activity</label>
+                        <input
+                            type="text"
+                            id="activity_type"
+                            name="activity_type"
+                            placeholder="e.g., loitering, dealing, vandalism"
+                        >
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="location">Location</label>
+                    <input
+                        type="text"
+                        id="location"
+                        name="location"
+                        placeholder="e.g., intersection of Main St and 5th Ave"
+                    >
+                    <p class="field-hint">Intersection, landmark, or general area. Be as specific as you're comfortable with.</p>
+                </div>
+
+                <div class="field">
+                    <label for="location_details">Additional location details</label>
+                    <input
+                        type="text"
+                        id="location_details"
+                        name="location_details"
+                        placeholder="e.g., behind the grocery store, near the park entrance"
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="date_time">When did this occur?</label>
+                    <input
+                        type="text"
+                        id="date_time"
+                        name="date_time"
+                        placeholder="e.g., Yesterday around 10pm, Saturday afternoon"
+                    >
+                    <p class="field-hint">Use general terms to avoid timezone identification if concerned about privacy.</p>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>Identifying Features (Optional)</h2>
+
+                <div class="field">
+                    <label for="identifiers">Clothing, symbols, or identifying marks</label>
+                    <textarea
+                        id="identifiers"
+                        name="identifiers"
+                        rows="3"
+                        placeholder="e.g., red bandanas, specific logos, tattoos, hand signs, vests with patches..."
+                    ></textarea>
+                </div>
+
+                <div class="field">
+                    <label for="equipment">Vehicles, weapons, or equipment</label>
+                    <textarea
+                        id="equipment"
+                        name="equipment"
+                        rows="3"
+                        placeholder="e.g., black SUV with tinted windows, partial plate ABC..., baseball bats..."
+                    ></textarea>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>Photos or Videos (Optional)</h2>
+                <div class="field">
+                    <label for="media">Upload files</label>
+                    <div class="file-upload" id="file-upload-area">
+                        <input
+                            type="file"
+                            id="media"
+                            name="media"
+                            multiple
+                            accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                        >
+                        <p>Drag and drop files here, or click to select</p>
+                        <p class="field-hint">Max 5 files, 10MB each. JPEG, PNG, GIF, WebP, MP4, WebM</p>
+                    </div>
+                    <div id="file-list" class="file-list"></div>
+                    <p class="privacy-note">
+                        <strong>Privacy:</strong> Location data and other metadata will be automatically
+                        removed from your photos before submission.
+                    </p>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>Additional Information (Optional)</h2>
+                <div class="field">
+                    <label for="additional_info">Anything else relevant</label>
+                    <textarea
+                        id="additional_info"
+                        name="additional_info"
+                        rows="3"
+                        placeholder="Any other details that might be helpful..."
+                    ></textarea>
+                </div>
+            </section>
+
+            <section class="form-actions">
+                <button type="submit" class="button primary" id="submit-btn">Submit Report</button>
+                <button type="reset" class="button secondary">Clear Form</button>
+            </section>
+
+            <p class="disclaimer">
+                By submitting this report, you confirm that the information provided is true to
+                the best of your knowledge. False reports may be subject to legal consequences.
+            </p>
+        </form>
+
+        <footer>
+            <p><a href="/privacy.html">Privacy Policy</a></p>
+        </footer>
+    </main>
+
+    <script src="/assets/report.js"></script>
+</body>
+</html>
