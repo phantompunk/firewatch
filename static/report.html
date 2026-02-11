@@ -5,119 +5,167 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="no-referrer">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>Submit Report - Firewatch Reports</title>
+    <title>Firewatch Reports - Anonymous Community Reporting</title>
     <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
     <main class="container">
         <header>
-            <a href="/" class="back-link">&larr; Back to Home</a>
-            <h1>Submit Anonymous Report</h1>
-            <p class="privacy-note">
-                Your privacy is protected. We don't log IP addresses, use cookies, or track you.
-            </p>
+            <div class="header-toggles">
+                <div class="toggle-group">
+                    <span class="toggle-btn active">EN</span>
+                    <a href="/report-es.html" class="toggle-btn">ES</a>
+                </div>
+                <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+                    <span class="theme-icon-light">&#9790;</span>
+                    <span class="theme-icon-dark">&#9788;</span>
+                </button>
+            </div>
+            <h1>Firewatch Reports</h1>
+            <p class="tagline">Anonymous Community Safety Reporting</p>
         </header>
 
-        <form id="report-form" action="/api/submit" method="POST" enctype="multipart/form-data">
+        <section class="info-dropdowns">
+            <details class="dropdown">
+                <summary class="dropdown-header">
+                    <span>Your Privacy is Protected</span>
+                    <span class="dropdown-arrow"></span>
+                </summary>
+                <div class="dropdown-content">
+                    <ul>
+                        <li><strong>No IP Logging</strong> - We don't record your IP address</li>
+                        <li><strong>No Cookies</strong> - Nothing is stored on your device</li>
+                        <li><strong>No Tracking</strong> - No analytics or third-party scripts</li>
+                        <li><strong>No Account Required</strong> - Submit reports without registering</li>
+                        <li><strong>Metadata Removed</strong> - Photos are stripped of location data</li>
+                        <li><strong>Tor Friendly</strong> - Works with Tor Browser for extra privacy</li>
+                    </ul>
+                    <a href="/privacy.html" class="link-subtle">Learn more about our privacy protections</a>
+                </div>
+            </details>
 
+            <details class="dropdown">
+                <summary class="dropdown-header">
+                    <span>What to Report</span>
+                    <span class="dropdown-arrow"></span>
+                </summary>
+                <div class="dropdown-content">
+                    <p>You can report observations of law enforcement misconduct, such as:</p>
+                    <ul>
+                        <li>Excessive or unnecessary use of force</li>
+                        <li>Unlawful stops, searches, or detentions</li>
+                        <li>Harassment or intimidation by officers</li>
+                        <li>Racial profiling or discriminatory treatment</li>
+                        <li>Failure to identify or provide badge numbers</li>
+                        <li>Destruction or confiscation of recording devices</li>
+                        <li>Planting evidence or falsifying reports</li>
+                        <li>Theft or property damage during searches</li>
+                    </ul>
+                    <p class="note">
+                        <strong>Document safely:</strong> If possible, note badge numbers, patrol car numbers,
+                        time, location, and any witnesses. Your safety comes first.
+                    </p>
+                </div>
+            </details>
+        </section>
+
+        <form id="report-form" action="/api/submit" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="lang" value="en">
+
+            <section class="form-section salute-intro">
+                <h2>SALUTE Report Format</h2>
+                <p class="section-hint">Use this structured format to provide useful information. All fields are optional except the activity description.</p>
+            </section>
+
+            <!-- S - Size -->
             <section class="form-section">
-                <h2>What did you observe? <span class="required">*</span></h2>
+                <h2><span class="salute-letter">S</span> Size</h2>
                 <div class="field">
-                    <label for="description">Describe the activity in detail</label>
-                    <textarea
-                        id="description"
-                        name="description"
-                        rows="6"
-                        required
-                        placeholder="Describe what you saw, including any relevant details about the activity..."
-                    ></textarea>
-                    <p class="field-hint">This is the only required field. Be as specific as you feel comfortable.</p>
+                    <label for="size">Number of personnel and vehicles</label>
+                    <input
+                        type="text"
+                        id="size"
+                        name="size"
+                        placeholder="e.g., 3 officers, 2 patrol cars"
+                    >
                 </div>
             </section>
 
+            <!-- A - Activity -->
             <section class="form-section">
-                <h2>Details (Optional)</h2>
-                <p class="section-hint">All fields below are optional. Provide what you can.</p>
-
-                <div class="field-row">
-                    <div class="field">
-                        <label for="member_count">Estimated number of people</label>
-                        <input
-                            type="text"
-                            id="member_count"
-                            name="member_count"
-                            placeholder="e.g., 4-5 people"
-                        >
-                    </div>
-
-                    <div class="field">
-                        <label for="activity_type">Type of activity</label>
-                        <input
-                            type="text"
-                            id="activity_type"
-                            name="activity_type"
-                            placeholder="e.g., loitering, dealing, vandalism"
-                        >
-                    </div>
-                </div>
-
+                <h2><span class="salute-letter">A</span> Activity <span class="required">*</span></h2>
                 <div class="field">
-                    <label for="location">Location</label>
+                    <label for="activity">What happened? <span class="required">*</span></label>
+                    <textarea
+                        id="activity"
+                        name="activity"
+                        rows="4"
+                        required
+                        placeholder="e.g., Officers conducted a stop without probable cause, used excessive force during arrest, searched vehicle without consent..."
+                    ></textarea>
+                </div>
+            </section>
+
+            <!-- L - Location -->
+            <section class="form-section">
+                <h2><span class="salute-letter">L</span> Location</h2>
+                <div class="field">
+                    <label for="location">Where did this occur?</label>
                     <input
                         type="text"
                         id="location"
                         name="location"
-                        placeholder="e.g., intersection of Main St and 5th Ave"
+                        placeholder="e.g., Main St and 5th Ave, behind the grocery store on Oak Street"
                     >
-                    <p class="field-hint">Intersection, landmark, or general area. Be as specific as you're comfortable with.</p>
-                </div>
-
-                <div class="field">
-                    <label for="location_details">Additional location details</label>
-                    <input
-                        type="text"
-                        id="location_details"
-                        name="location_details"
-                        placeholder="e.g., behind the grocery store, near the park entrance"
-                    >
-                </div>
-
-                <div class="field">
-                    <label for="date_time">When did this occur?</label>
-                    <input
-                        type="text"
-                        id="date_time"
-                        name="date_time"
-                        placeholder="e.g., Yesterday around 10pm, Saturday afternoon"
-                    >
-                    <p class="field-hint">Use general terms to avoid timezone identification if concerned about privacy.</p>
                 </div>
             </section>
 
+            <!-- U - Uniform -->
             <section class="form-section">
-                <h2>Identifying Features (Optional)</h2>
-
+                <h2><span class="salute-letter">U</span> Uniform</h2>
                 <div class="field">
-                    <label for="identifiers">Clothing, symbols, or identifying marks</label>
+                    <label for="uniform">Uniforms, badges, agency</label>
                     <textarea
-                        id="identifiers"
-                        name="identifiers"
-                        rows="3"
-                        placeholder="e.g., red bandanas, specific logos, tattoos, hand signs, vests with patches..."
+                        id="uniform"
+                        name="uniform"
+                        rows="2"
+                        placeholder="e.g., City Police, badge #1234, name tag 'Smith', tactical gear, plainclothes"
                     ></textarea>
                 </div>
+            </section>
 
+            <!-- T - Time -->
+            <section class="form-section">
+                <h2><span class="salute-letter">T</span> Time</h2>
                 <div class="field">
-                    <label for="equipment">Vehicles, weapons, or equipment</label>
+                    <label for="time">
+                        When did this happen?
+                        <button type="button" class="inline-btn" id="now-btn">Now</button>
+                    </label>
+                    <input
+                        type="text"
+                        id="time"
+                        name="time"
+                        placeholder="e.g., 3:45 PM, yesterday evening, Tuesday morning"
+                    >
+                </div>
+            </section>
+
+            <!-- E - Equipment -->
+            <section class="form-section">
+                <h2><span class="salute-letter">E</span> Equipment</h2>
+                <div class="field">
+                    <label for="equipment">Vehicles, weapons, gear</label>
                     <textarea
                         id="equipment"
                         name="equipment"
-                        rows="3"
-                        placeholder="e.g., black SUV with tinted windows, partial plate ABC..., baseball bats..."
+                        rows="2"
+                        placeholder="e.g., marked cruiser unit #452, plate ABC-1234, handgun drawn, body cameras off"
                     ></textarea>
                 </div>
             </section>
 
+            <!-- Media Upload -->
             <section class="form-section">
                 <h2>Photos or Videos (Optional)</h2>
                 <div class="field">
@@ -141,6 +189,7 @@
                 </div>
             </section>
 
+            <!-- Additional Info -->
             <section class="form-section">
                 <h2>Additional Information (Optional)</h2>
                 <div class="field">
@@ -149,7 +198,7 @@
                         id="additional_info"
                         name="additional_info"
                         rows="3"
-                        placeholder="Any other details that might be helpful..."
+                        placeholder="e.g., witnesses present, victim information (with consent), ongoing pattern of behavior, related incidents..."
                     ></textarea>
                 </div>
             </section>

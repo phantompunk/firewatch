@@ -21,11 +21,58 @@
 
     // Initialize
     function init() {
+        setupThemeToggle();
+
         if (!form) return;
 
         setupFileUpload();
         setupFormSubmission();
         setupClearWarning();
+        setupNowButton();
+    }
+
+    // Theme toggle
+    function setupThemeToggle() {
+        const themeToggle = document.getElementById('theme-toggle');
+        if (!themeToggle) return;
+
+        // Check for saved theme preference
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+
+        themeToggle.addEventListener('click', function() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+            if (newTheme === 'dark') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.removeItem('theme');
+            } else {
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+            }
+        });
+    }
+
+    // Now button for time field
+    function setupNowButton() {
+        const nowBtn = document.getElementById('now-btn');
+        const timeInput = document.getElementById('time');
+
+        if (!nowBtn || !timeInput) return;
+
+        nowBtn.addEventListener('click', function() {
+            const now = new Date();
+            let hours = now.getHours();
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // 0 should be 12
+            timeInput.value = hours + ':' + minutes + ' ' + ampm;
+            timeInput.focus();
+        });
     }
 
     // File Upload Handling
@@ -157,10 +204,10 @@
             e.preventDefault();
 
             // Basic validation
-            const description = form.querySelector('#description');
-            if (!description.value.trim()) {
-                alert('Please provide a description of the activity.');
-                description.focus();
+            const activity = form.querySelector('#activity');
+            if (!activity || !activity.value.trim()) {
+                alert('Please describe what happened.');
+                if (activity) activity.focus();
                 return;
             }
 

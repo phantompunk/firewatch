@@ -1,10 +1,10 @@
 # Firewatch Reports - Planning Document
 
-## Anonymous Gang Activity Reporting System
+## Anonymous Agent Activity Reporting System
 
 ### 1. Overview
 
-A privacy-focused web application enabling community members to anonymously report gang activity to a community organization. The system prioritizes reporter safety through maximum anonymity protections while collecting actionable intelligence.
+A privacy-focused web application enabling community members to anonymously report agent activity to a community organization. The system prioritizes reporter safety through maximum anonymity protections while collecting actionable intelligence.
 
 **Key Principles:**
 - Reporter anonymity is paramount
@@ -60,22 +60,27 @@ A privacy-focused web application enabling community members to anonymously repo
 
 ---
 
-### 3. Data Collected (Report Schema)
+### 3. Data Collected (SALUTE Report Schema)
 
-All fields optional except incident description to maximize flexibility and anonymity.
+The form follows the SALUTE mnemonic (Size, Activity, Location, Uniform, Time, Equipment) for structured reporting of law enforcement activity. All fields optional except activity description.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `description` | text | Yes | Free-form description of activity observed |
-| `member_count` | number | No | Estimated number of individuals |
-| `activity_type` | text | No | What they were doing (loitering, dealing, vandalism, etc.) |
-| `location` | text | No | Where observed (intersection, landmark, address) |
-| `location_details` | text | No | Additional location context (near X, behind Y) |
-| `date_time` | text | No | When observed (free text to avoid timezone leaks) |
-| `identifiers` | text | No | Clothing, symbols, colors, letters, vests, tattoos |
-| `equipment` | text | No | Vehicles (color, type, partial plates), weapons, tools |
-| `media` | file[] | No | Photos/videos (max 5 files, 10MB each) |
-| `additional_info` | text | No | Anything else relevant |
+| Category | Field | Type | Required | Description |
+|----------|-------|------|----------|-------------|
+| **S - Size** | `size_personnel` | text | No | Number of agents/officers involved |
+| | `size_vehicles` | text | No | Number and type of vehicles |
+| **A - Activity** | `activity` | text | Yes | Detailed description of observed activity/misconduct |
+| | `activity_type` | text | No | Type of misconduct (excessive force, unlawful search, harassment, etc.) |
+| **L - Location** | `location` | text | No | Where observed (intersection, landmark, address) |
+| | `location_details` | text | No | Additional location context (direction, nearby landmarks) |
+| **U - Uniform** | `uniform` | text | No | Uniforms, badges, name tags, visible ID |
+| | `agency` | text | No | Agency or department (police, sheriff, federal) |
+| **T - Time** | `date_time` | text | No | When observed (free text to avoid timezone leaks) |
+| | `duration` | text | No | How long the incident lasted |
+| **E - Equipment** | `vehicles` | text | No | Vehicle descriptions (marked/unmarked, unit numbers, plates) |
+| | `weapons` | text | No | Weapons displayed or used |
+| | `equipment` | text | No | Other equipment (body cameras, K-9, restraints) |
+| **Other** | `media` | file[] | No | Photos/videos (max 5 files, 10MB each) |
+| | `additional_info` | text | No | Witnesses, related incidents, other relevant info |
 
 **Not Collected:**
 - IP addresses
@@ -268,31 +273,44 @@ Content-Type: multipart/encrypted; protocol="application/pgp-encrypted"
 [Encrypted attachments if present]
 ```
 
-#### 7.2 Decrypted Report Format
+#### 7.2 Decrypted Report Format (SALUTE)
 
 ```
-================================
-ANONYMOUS COMMUNITY REPORT
+=====================================
+ANONYMOUS SALUTE REPORT
 Received: [Date/Time - server timezone]
-================================
+=====================================
 
-INCIDENT DESCRIPTION:
-[User's description]
+[S] SIZE:
+- Personnel: [size_personnel or "Not provided"]
+- Vehicles: [size_vehicles or "Not provided"]
 
-DETAILS:
-- Estimated individuals: [count or "Not provided"]
-- Activity observed: [activity or "Not provided"]
+[A] ACTIVITY:
+[activity description]
+- Type: [activity_type or "Not provided"]
+
+[L] LOCATION:
 - Location: [location or "Not provided"]
-- Location details: [details or "Not provided"]
-- Date/Time observed: [datetime or "Not provided"]
-- Identifying features: [identifiers or "Not provided"]
-- Equipment/Vehicles: [equipment or "Not provided"]
+- Details: [location_details or "Not provided"]
+
+[U] UNIFORM:
+- Description: [uniform or "Not provided"]
+- Agency: [agency or "Not provided"]
+
+[T] TIME:
+- When: [date_time or "Not provided"]
+- Duration: [duration or "Not provided"]
+
+[E] EQUIPMENT:
+- Vehicles: [vehicles or "Not provided"]
+- Weapons: [weapons or "Not provided"]
+- Other: [equipment or "Not provided"]
 
 ADDITIONAL INFORMATION:
-[additional info or "None provided"]
+[additional_info or "None provided"]
 
 ATTACHMENTS: [count] file(s)
-================================
+=====================================
 ```
 
 ---

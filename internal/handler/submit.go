@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -11,18 +12,17 @@ import (
 	"github.com/firewatch/reports/internal/security"
 )
 
-// Report represents a submitted anonymous report
+// Report represents a submitted anonymous report (SALUTE format)
 type Report struct {
-	Description     string
-	MemberCount     string
-	ActivityType    string
-	Location        string
-	LocationDetails string
-	DateTime        string
-	Identifiers     string
-	Equipment       string
-	AdditionalInfo  string
-	Attachments     []models.Attachment
+	Size           string // S - Size (personnel and vehicles)
+	Activity       string // A - Activity (what happened) - Required
+	Location       string // L - Location
+	Uniform        string // U - Uniform (badges, agency)
+	Time           string // T - Time
+	Equipment      string // E - Equipment (vehicles, weapons, gear)
+	AdditionalInfo string
+	Lang           string // Language (en/es)
+	Attachments    []models.Attachment
 }
 
 // SubmitHandler handles anonymous report submissions
@@ -69,8 +69,8 @@ func (h *SubmitHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	report := h.extractReport(r)
 
 	// Validate required fields
-	if strings.TrimSpace(report.Description) == "" {
-		http.Error(w, "Description is required", http.StatusBadRequest)
+	if strings.TrimSpace(report.Activity) == "" {
+		http.Error(w, "Activity description is required", http.StatusBadRequest)
 		return
 	}
 
@@ -84,7 +84,8 @@ func (h *SubmitHandler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	// Send email
 	if err := h.emailSender.SendReport(report.ToEmailContent(), attachments); err != nil {
-		// Log error internally but don't expose details
+		// TEMP: Log error for debugging
+		log.Printf("ERROR sending email: %v", err)
 		http.Error(w, "Submission failed. Please try again.", http.StatusInternalServerError)
 		return
 	}
@@ -93,18 +94,17 @@ func (h *SubmitHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/submitted.html", http.StatusSeeOther)
 }
 
-// extractReport extracts and sanitizes form fields
+// extractReport extracts and sanitizes form fields (SALUTE format)
 func (h *SubmitHandler) extractReport(r *http.Request) Report {
 	return Report{
-		Description:     sanitizeInput(r.FormValue("description")),
-		MemberCount:     sanitizeInput(r.FormValue("member_count")),
-		ActivityType:    sanitizeInput(r.FormValue("activity_type")),
-		Location:        sanitizeInput(r.FormValue("location")),
-		LocationDetails: sanitizeInput(r.FormValue("location_details")),
-		DateTime:        sanitizeInput(r.FormValue("date_time")),
-		Identifiers:     sanitizeInput(r.FormValue("identifiers")),
-		Equipment:       sanitizeInput(r.FormValue("equipment")),
-		AdditionalInfo:  sanitizeInput(r.FormValue("additional_info")),
+		Size:           sanitizeInput(r.FormValue("size")),
+		Activity:       sanitizeInput(r.FormValue("activity")),
+		Location:       sanitizeInput(r.FormValue("location")),
+		Uniform:        sanitizeInput(r.FormValue("uniform")),
+		Time:           sanitizeInput(r.FormValue("time")),
+		Equipment:      sanitizeInput(r.FormValue("equipment")),
+		AdditionalInfo: sanitizeInput(r.FormValue("additional_info")),
+		Lang:           sanitizeInput(r.FormValue("lang")),
 	}
 }
 
@@ -159,34 +159,40 @@ func (h *SubmitHandler) processAttachments(r *http.Request) ([]models.Attachment
 	return attachments, nil
 }
 
-// ToEmailContent formats the report for email
+// ToEmailContent formats the report for email (SALUTE format)
 func (r *Report) ToEmailContent() string {
 	var sb strings.Builder
 
-	sb.WriteString("================================\n")
-	sb.WriteString("ANONYMOUS COMMUNITY REPORT\n")
-	sb.WriteString("================================\n\n")
+	sb.WriteString("=====================================\n")
+	sb.WriteString("ANONYMOUS SALUTE REPORT\n")
+	if r.Lang == "es" {
+		sb.WriteString("(Formato ACTUAR)\n")
+	}
+	sb.WriteString("=====================================\n\n")
 
-	sb.WriteString("INCIDENT DESCRIPTION:\n")
-	sb.WriteString(r.Description)
-	sb.WriteString("\n\n")
+	sb.WriteString("[S] SIZE:\n")
+	sb.WriteString(fmt.Sprintf("    %s\n\n", valueOrDefault(r.Size)))
 
-	sb.WriteString("DETAILS:\n")
-	sb.WriteString(fmt.Sprintf("- Estimated individuals: %s\n", valueOrDefault(r.MemberCount)))
-	sb.WriteString(fmt.Sprintf("- Activity observed: %s\n", valueOrDefault(r.ActivityType)))
-	sb.WriteString(fmt.Sprintf("- Location: %s\n", valueOrDefault(r.Location)))
-	sb.WriteString(fmt.Sprintf("- Location details: %s\n", valueOrDefault(r.LocationDetails)))
-	sb.WriteString(fmt.Sprintf("- Date/Time observed: %s\n", valueOrDefault(r.DateTime)))
-	sb.WriteString(fmt.Sprintf("- Identifying features: %s\n", valueOrDefault(r.Identifiers)))
-	sb.WriteString(fmt.Sprintf("- Equipment/Vehicles: %s\n", valueOrDefault(r.Equipment)))
-	sb.WriteString("\n")
+	sb.WriteString("[A] ACTIVITY:\n")
+	sb.WriteString(fmt.Sprintf("    %s\n\n", r.Activity))
+
+	sb.WriteString("[L] LOCATION:\n")
+	sb.WriteString(fmt.Sprintf("    %s\n\n", valueOrDefault(r.Location)))
+
+	sb.WriteString("[U] UNIFORM:\n")
+	sb.WriteString(fmt.Sprintf("    %s\n\n", valueOrDefault(r.Uniform)))
+
+	sb.WriteString("[T] TIME:\n")
+	sb.WriteString(fmt.Sprintf("    %s\n\n", valueOrDefault(r.Time)))
+
+	sb.WriteString("[E] EQUIPMENT:\n")
+	sb.WriteString(fmt.Sprintf("    %s\n\n", valueOrDefault(r.Equipment)))
 
 	sb.WriteString("ADDITIONAL INFORMATION:\n")
-	sb.WriteString(valueOrDefault(r.AdditionalInfo))
-	sb.WriteString("\n\n")
+	sb.WriteString(fmt.Sprintf("    %s\n\n", valueOrDefault(r.AdditionalInfo)))
 
 	sb.WriteString(fmt.Sprintf("ATTACHMENTS: %d file(s)\n", len(r.Attachments)))
-	sb.WriteString("================================\n")
+	sb.WriteString("=====================================\n")
 
 	return sb.String()
 }
