@@ -1,21 +1,29 @@
-.PHONY: build run clean dev
+.PHONY: help clean build build-prod dev run
 
-# Build the server binary
-build:
-	go build -o firewatch-server ./cmd/server
+# Set the default goal
+.DEFAULT_GOAL := help
 
-# Run the server (development mode - no SMTP)
-run: build
-	./firewatch-server
+## help: print this help message
+help:
+	@echo 'Usage:'
+	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
 
-# Run with live reload (requires air: go install github.com/cosmtrek/air@latest)
+## dev: run the server with live reload (requires air - go install github.com/cosmtrek/air@latest)
 dev:
 	air
 
-# Clean build artifacts
-clean:
-	rm -f firewatch-server
+## build: Build the server binary
+build:
+	go build -o ./tmp/firewatch ./cmd/server
 
-# Build for production (static binary)
+## run: run the server (development mode - no SMTP)
+run: build
+	./tmp/firewatch
+
+## clean: clean build artifacts
+clean:
+	rm -f ./tmp/firewatch
+
+## build-prod: build for production (static binary)
 build-prod:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o firewatch-server ./cmd/server
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o firewatch ./cmd/server

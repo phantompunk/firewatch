@@ -1,4 +1,4 @@
-# Firewatch Reports - Planning Document
+# Firewatch Design Document
 
 ## Anonymous Agent Activity Reporting System
 
@@ -17,12 +17,6 @@ A privacy-focused web application enabling community members to anonymously repo
 ### 2. System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         REPORTER                                │
-│                    (Tor Browser Recommended)                    │
-└─────────────────────┬───────────────────────────────────────────┘
-                      │ HTTPS (TLS 1.3)
-                      ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    STATIC FRONTEND                              │
 │              (CDN / Static Host - No Logging)                   │
@@ -66,19 +60,12 @@ The form follows the SALUTE mnemonic (Size, Activity, Location, Uniform, Time, E
 
 | Category | Field | Type | Required | Description |
 |----------|-------|------|----------|-------------|
-| **S - Size** | `size_personnel` | text | No | Number of agents/officers involved |
-| | `size_vehicles` | text | No | Number and type of vehicles |
-| **A - Activity** | `activity` | text | Yes | Detailed description of observed activity/misconduct |
-| | `activity_type` | text | No | Type of misconduct (excessive force, unlawful search, harassment, etc.) |
+| **S - Size** | `size` | text | No | Number of agents/officers and vehicles |
+| **A - Activity** | `activity` | text | Yes | Description of observed activity/misconduct |
 | **L - Location** | `location` | text | No | Where observed (intersection, landmark, address) |
-| | `location_details` | text | No | Additional location context (direction, nearby landmarks) |
-| **U - Uniform** | `uniform` | text | No | Uniforms, badges, name tags, visible ID |
-| | `agency` | text | No | Agency or department (police, sheriff, federal) |
-| **T - Time** | `date_time` | text | No | When observed (free text to avoid timezone leaks) |
-| | `duration` | text | No | How long the incident lasted |
-| **E - Equipment** | `vehicles` | text | No | Vehicle descriptions (marked/unmarked, unit numbers, plates) |
-| | `weapons` | text | No | Weapons displayed or used |
-| | `equipment` | text | No | Other equipment (body cameras, K-9, restraints) |
+| **U - Uniform** | `uniform` | text | No | Uniforms, badges, agency, visible ID |
+| **T - Time** | `time` | text | No | When and how long (free text to avoid timezone leaks) |
+| **E - Equipment** | `equipment` | text | No | Vehicles, weapons, and other equipment observed |
 | **Other** | `media` | file[] | No | Photos/videos (max 5 files, 10MB each) |
 | | `additional_info` | text | No | Witnesses, related incidents, other relevant info |
 
@@ -102,7 +89,7 @@ The form follows the SALUTE mnemonic (Size, Activity, Location, Uniform, Time, E
 | No analytics | Zero third-party scripts |
 | No CDN tracking | Self-host all assets or use privacy-respecting CDN |
 | EXIF stripping | Client-side JavaScript removes image metadata before upload |
-| Tor-friendly | No CAPTCHAs, no JavaScript requirements for basic submission |
+| No JS required | No CAPTCHAs, no JavaScript requirements for basic submission |
 | No referrer leaks | `Referrer-Policy: no-referrer` header |
 | CSP hardening | Strict Content-Security-Policy |
 
@@ -168,7 +155,6 @@ The form follows the SALUTE mnemonic (Size, Activity, Location, Uniform, Time, E
 4. **Visual feedback** - Show when metadata is stripped from images
 5. **No autosave** - Nothing stored until explicit submission
 6. **Clear before close** - Warn and clear sensitive data on navigation
-7. **Onion address displayed** - Show Tor hidden service address prominently
 
 #### 5.4 Accessibility
 
@@ -200,10 +186,11 @@ The form follows the SALUTE mnemonic (Size, Activity, Location, Uniform, Time, E
         stripper.go         # EXIF/metadata removal
         validator.go        # File type validation
     /security
+    		headers.go          # Security headers middleware
         sanitizer.go        # Input sanitization
         ratelimit.go        # Submission rate limiting
-/config
-    config.go               # Environment configuration
+		/config
+    		config.go           # Environment configuration
 ```
 
 #### 6.2 Dependencies (Minimal)
@@ -282,29 +269,22 @@ Received: [Date/Time - server timezone]
 =====================================
 
 [S] SIZE:
-- Personnel: [size_personnel or "Not provided"]
-- Vehicles: [size_vehicles or "Not provided"]
+[size or "Not provided"]
 
 [A] ACTIVITY:
-[activity description]
-- Type: [activity_type or "Not provided"]
+[activity]
 
 [L] LOCATION:
-- Location: [location or "Not provided"]
-- Details: [location_details or "Not provided"]
+[location or "Not provided"]
 
 [U] UNIFORM:
-- Description: [uniform or "Not provided"]
-- Agency: [agency or "Not provided"]
+[uniform or "Not provided"]
 
 [T] TIME:
-- When: [date_time or "Not provided"]
-- Duration: [duration or "Not provided"]
+[time or "Not provided"]
 
 [E] EQUIPMENT:
-- Vehicles: [vehicles or "Not provided"]
-- Weapons: [weapons or "Not provided"]
-- Other: [equipment or "Not provided"]
+[equipment or "Not provided"]
 
 ADDITIONAL INFORMATION:
 [additional_info or "None provided"]
@@ -339,24 +319,14 @@ ATTACHMENTS: [count] file(s)
 └───────────────────┘     └───────────────────┘
 ```
 
-#### 8.2 Tor Hidden Service (Recommended)
-
-Provide an `.onion` address for maximum anonymity:
-
-```
-# /etc/tor/torrc
-HiddenServiceDir /var/lib/tor/firewatch/
-HiddenServicePort 80 127.0.0.1:80
-```
-
-#### 8.3 Hosting Requirements
+#### 8.2 Hosting Requirements
 
 - **VPS provider**: Choose provider that accepts anonymous payment
 - **Jurisdiction**: Consider legal jurisdiction for data requests
 - **No cloud functions**: Avoid AWS Lambda, Cloudflare Workers (logging)
 - **Dedicated IP**: Avoid shared hosting
 
-#### 8.4 Environment Variables
+#### 8.3 Environment Variables
 
 ```bash
 # Required
@@ -381,7 +351,7 @@ ALLOWED_MEDIA_TYPES=image/jpeg,image/png,video/mp4
 
 | Threat | Mitigation |
 |--------|------------|
-| Network surveillance | HTTPS + Tor support |
+| Network surveillance | HTTPS enforced |
 | IP tracking | No server-side IP logging |
 | Browser fingerprinting | Minimal JS, no third-party resources |
 | Image metadata exposure | Client + server EXIF stripping |
@@ -398,7 +368,7 @@ ALLOWED_MEDIA_TYPES=image/jpeg,image/png,video/mp4
 | Shoulder surfing | Submit in private location |
 | Content-based identification | Don't include identifying details in report |
 | Screenshot by malware | Use clean device |
-| Network traffic analysis | Use Tor Browser |
+| Network traffic analysis | Use VPN or privacy-focused browser |
 
 #### 9.3 Organizational Threats
 
@@ -423,7 +393,6 @@ ALLOWED_MEDIA_TYPES=image/jpeg,image/png,video/mp4
 - [ ] Server-side metadata stripping
 - [ ] PGP email encryption
 - [ ] Security headers implementation
-- [ ] Tor hidden service
 
 #### Phase 3: Polish
 - [ ] Accessibility audit
@@ -451,7 +420,6 @@ ALLOWED_MEDIA_TYPES=image/jpeg,image/png,video/mp4
 - [ ] EXIF data stripped from uploads
 - [ ] PGP encryption verified
 - [ ] No IP addresses in any logs
-- [ ] Tor Browser compatible
 
 #### 11.2 Functional Testing
 
@@ -518,4 +486,4 @@ gpg --armor --export reports@organization.org > org-public.asc
 ---
 
 *Document Version: 1.0*
-*Last Updated: 2026-01-20*
+*Last Updated: 2026-02-12*
