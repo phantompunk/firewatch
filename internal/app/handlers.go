@@ -7,8 +7,10 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/firewatch/reports/internal/models"
 )
@@ -56,6 +58,27 @@ func (app *App) submitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.MultipartForm.RemoveAll()
+
+	// Honeypot check: bots fill hidden fields, real users don't
+	if r.FormValue("website") != "" {
+		app.logger.Warn("submission rejected: honeypot triggered")
+		http.Redirect(w, r, "/submitted.html", http.StatusFound)
+		return
+	}
+
+	// Timestamp trap: reject if submitted too fast (<3s) or too slow (>1h)
+	if ts, err := strconv.ParseInt(r.FormValue("_t"), 10, 64); err == nil {
+		elapsed := time.Now().Unix() - ts
+		if elapsed < 3 || elapsed > 3600 {
+			app.logger.Warn("submission rejected: timestamp out of range", "elapsed_sec", elapsed)
+			http.Redirect(w, r, "/submitted.html", http.StatusFound)
+			return
+		}
+	} else {
+		app.logger.Warn("submission rejected: missing timestamp")
+		http.Redirect(w, r, "/submitted.html", http.StatusFound)
+		return
+	}
 
 	// Extract and sanitize form fields
 	report := extractReport(r)

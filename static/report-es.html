@@ -71,6 +71,11 @@
 
         <form id="report-form" action="/api/submit" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="lang" value="es">
+            <input type="hidden" name="_t" value="">
+            <div class="field" aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;">
+                <label for="website">Website</label>
+                <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+            </div>
 
             <section class="form-section salute-intro">
                 <h2>Formato ACTUAR</h2>

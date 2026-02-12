@@ -25,6 +25,7 @@
 
         if (!form) return;
 
+        setupTimestamp();
         setupFileUpload();
         setupFormSubmission();
         setupClearWarning();
@@ -54,6 +55,12 @@
                 localStorage.setItem('theme', newTheme);
             }
         });
+    }
+
+    // Set page load timestamp for spam detection
+    function setupTimestamp() {
+        var ts = form.querySelector('input[name="_t"]');
+        if (ts) ts.value = Math.floor(Date.now() / 1000);
     }
 
     // Now button for time field
