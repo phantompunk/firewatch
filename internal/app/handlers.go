@@ -12,6 +12,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/firewatch/reports/internal/media"
 	"github.com/firewatch/reports/internal/models"
 )
 
@@ -91,7 +92,7 @@ func (app *App) submitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Process file attachments
-	attachments, err := processAttachments(r)
+	attachments, err := app.processAttachments(r)
 	if err != nil {
 		app.logger.Warn("attachment processing failed", "error", err)
 		http.Error(w, "Error processing attachments", http.StatusBadRequest)
@@ -144,8 +145,8 @@ func extractReport(r *http.Request) Report {
 	}
 }
 
-// processAttachments handles file uploads
-func processAttachments(r *http.Request) ([]models.Attachment, error) {
+// processAttachments handles file uploads, stripping metadata from images.
+func (app *App) processAttachments(r *http.Request) ([]models.Attachment, error) {
 	var attachments []models.Attachment
 
 	files := r.MultipartForm.File["media"]
@@ -185,10 +186,17 @@ func processAttachments(r *http.Request) ([]models.Attachment, error) {
 			continue
 		}
 
+		// Strip EXIF/GPS metadata from images
+		stripped, err := media.StripMetadata(data, contentType)
+		if err != nil {
+			app.logger.Warn("metadata stripping failed, using original", "filename", fileHeader.Filename, "error", err)
+			stripped = data
+		}
+
 		attachments = append(attachments, models.Attachment{
 			Filename:    sanitizeFilename(fileHeader.Filename),
 			ContentType: contentType,
-			Data:        data,
+			Data:        stripped,
 		})
 	}
 
