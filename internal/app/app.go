@@ -48,6 +48,16 @@ func New() (*App, error) {
 	// Initialize rate limiter
 	rateLimiter := security.NewRateLimiter(cfg.RateLimitPerMinute)
 
+	// In production, require PGP encryption to be properly configured
+	if cfg.IsProduction() {
+		if err := emailSender.EncryptionReady(); err != nil {
+			return nil, fmt.Errorf("pgp encryption required in production: %w", err)
+		}
+		logger.Info("pgp encryption verified")
+	} else if err := emailSender.EncryptionReady(); err != nil {
+		logger.Warn("pgp encryption not available, emails will be sent unencrypted", "reason", err.Error())
+	}
+
 	return &App{
 		config:      cfg,
 		logger:      logger,

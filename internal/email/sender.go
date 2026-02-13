@@ -40,6 +40,28 @@ func NewSender(host string, port int, user, pass, from, recipient, pgpKeyPath st
 	}
 }
 
+// EncryptionReady returns nil if PGP encryption is properly configured and the
+// public key can be read and parsed. Returns an error describing what is wrong
+// otherwise.
+func (s *Sender) EncryptionReady() error {
+	keyPath := s.resolvedKeyPath()
+	if keyPath == "" {
+		return fmt.Errorf("no PGP public key found (checked PGP_PUBLIC_KEY_PATH=%q and /run/secrets/pgp_public_key)", s.pgpPublicKeyPath)
+	}
+
+	keyData, err := os.ReadFile(keyPath)
+	if err != nil {
+		return fmt.Errorf("cannot read PGP public key at %s: %w", keyPath, err)
+	}
+
+	_, err = openpgp.ReadArmoredKeyRing(bytes.NewReader(keyData))
+	if err != nil {
+		return fmt.Errorf("cannot parse PGP public key at %s: %w", keyPath, err)
+	}
+
+	return nil
+}
+
 // SendReport sends a report via email, encrypting with PGP if configured.
 func (s *Sender) SendReport(content string, attachments []models.Attachment) error {
 	// If SMTP is not configured, log to stdout (for development)
