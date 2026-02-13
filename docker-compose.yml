@@ -1,0 +1,10 @@
+services:
+  firewatch:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./pubkey.asc:/pubkey.asc:ro
+    restart: unless-stopped
