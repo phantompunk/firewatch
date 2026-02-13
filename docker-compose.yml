@@ -5,6 +5,10 @@ services:
       - "8080:8080"
     env_file:
       - .env
-    volumes:
-      - ./pubkey.asc:/pubkey.asc:ro
+    secrets:
+      - pgp_public_key
     restart: unless-stopped
+
+secrets:
+  pgp_public_key:
+    file: ./pubkey.asc
