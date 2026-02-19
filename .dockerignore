@@ -1,7 +1,0 @@
-tmp/
-.env
-.env.prod
-.air.toml
-.git/
-docs/
-*.md
