@@ -7,26 +7,26 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/firewatch/internal/auth"
 	"github.com/firewatch/internal/config"
 	"github.com/firewatch/internal/crypto"
+	"github.com/firewatch/internal/mailer"
 	"github.com/firewatch/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 )
 
 type App struct {
-	config       *config.Config
-	logger       *slog.Logger
-	db           *pgxpool.Pool
-	schemaStore  *store.SchemaStore
-	userStore    *store.UserStore
-	sessionStore *store.SessionStore
+	config        *config.Config
+	logger        *slog.Logger
+	db            *pgxpool.Pool
+	schemaStore   *store.SchemaStore
+	userStore     *store.UserStore
+	sessionStore  *store.SessionStore
 	settingsStore *store.SettingsStore
+	mailer        *mailer.Mailer
 }
 
 func (app *App) Close() {
@@ -56,19 +56,25 @@ func New() (*App, error) {
 	crypter := crypto.New(encryptKey)
 	settingsStore := store.NewSettingsStore(pool, crypter)
 
+	// TODO: force password reset on first login if seeded from env vars
 	auth.SeedFirstAdmin(ctx, userStore)
 	if err := schemaStore.SeedDefault(ctx); err != nil {
 		slog.Warn("schema seed failed", "err", err)
 	}
 
+	s, _ := settingsStore.Load(ctx)
+	m := mailer.New()
+	m.Reconfigure(s)
+
 	return &App{
-		config:       cfg,
-		logger:       logger,
-		db:           pool,
-		schemaStore:  schemaStore,
-		userStore:    userStore,
-		sessionStore: sessionStore,
+		config:        cfg,
+		logger:        logger,
+		db:            pool,
+		schemaStore:   schemaStore,
+		userStore:     userStore,
+		sessionStore:  sessionStore,
 		settingsStore: settingsStore,
+		mailer:        m,
 	}, nil
 }
 
@@ -144,20 +150,4 @@ func newLogger(cfg *config.Config) *slog.Logger {
 
 	slog.SetDefault(logger)
 	return logger
-}
-
-func mustEnv(key string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	slog.Error("missing required environment variable", "key", key)
-	os.Exit(1)
-	return ""
-}
-
-func envOr(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
 }

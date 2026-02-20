@@ -2,7 +2,6 @@ package app
 
 import (
 	"net/http"
-	"os"
 
 	"github.com/firewatch/internal/handler"
 	"github.com/firewatch/internal/middleware"
@@ -23,8 +22,11 @@ func (app App) routes() http.Handler {
 	r.Get("/api/health", handler.Health(app.db))
 
 	// Public report form
-	reportHandler := handler.NewReportHandler(app.schemaStore, nil, web.Templates)
+	reportHandler := handler.NewReportHandler(app.logger, app.schemaStore, app.mailer, web.Templates)
 	r.Get("/", reportHandler.Form)
+	r.Get("/api/report", reportHandler.Get)
+
+	// TODO: finish
 	r.Post("/api/report", reportHandler.Submit)
 
 	// Admin auth (public endpoints)
@@ -39,13 +41,14 @@ func (app App) routes() http.Handler {
 
 		r.Post("/api/admin/logout", authHandler.Logout)
 
-		adminReportHandler := handler.NewAdminReportHandler(app.schemaStore, web.Templates)
+		adminReportHandler := handler.NewAdminReportHandler(app.logger, app.schemaStore, web.Templates)
 		r.Get("/admin/report", adminReportHandler.Page)
 		r.Get("/api/admin/report", adminReportHandler.Get)
 		r.Put("/api/admin/report", adminReportHandler.Update)
+		// TODO: finish
 		r.Post("/api/admin/report/apply", adminReportHandler.Apply)
 
-		settingsHandler := handler.NewSettingsHandler(app.settingsStore, nil, web.Templates)
+		settingsHandler := handler.NewSettingsHandler(app.logger, app.settingsStore, app.mailer, web.Templates)
 		r.Get("/admin/settings", settingsHandler.Page)
 		r.Get("/api/admin/settings", settingsHandler.Get)
 		r.Put("/api/admin/settings", settingsHandler.Update)
