@@ -1,0 +1,11 @@
+{{define "confirm_modal.html"}}
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <p>{{.Message}}</p>
+    <div class="modal-actions">
+      <button onclick="document.getElementById('confirm-modal').remove()">Cancel</button>
+      <button onclick="document.getElementById('confirm-modal').remove()">Confirm</button>
+    </div>
+  </div>
+</div>
+{{end}}

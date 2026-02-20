@@ -1,0 +1,82 @@
+{{define "admin_settings.html"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — Firewatch</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+{{template "admin_nav" .}}
+<main class="admin-main">
+  <h1>Settings</h1>
+
+  <form id="settings-form">
+    <section>
+      <h2>Mail Configuration</h2>
+      <div class="field-group">
+        <label>Destination Email</label>
+        <input type="email" name="destinationEmail" value="{{.DestinationEmail}}">
+      </div>
+      <div class="field-group">
+        <label>Email Subject</label>
+        <input type="text" name="emailSubjectTemplate" value="{{.EmailSubjectTemplate}}">
+      </div>
+      <div class="field-group">
+        <label>SMTP Host</label>
+        <input type="text" name="smtpHost" value="{{.SMTPHost}}">
+      </div>
+      <div class="field-group">
+        <label>SMTP Port</label>
+        <input type="number" name="smtpPort" value="{{.SMTPPort}}">
+      </div>
+      <div class="field-group">
+        <label>SMTP Username</label>
+        <input type="text" name="smtpUser" value="{{.SMTPUser}}">
+      </div>
+      <div class="field-group">
+        <label>SMTP Password</label>
+        <input type="password" name="smtpPass" placeholder="(unchanged)">
+      </div>
+      <div class="field-group">
+        <label>From Address</label>
+        <input type="email" name="smtpFromAddress" value="{{.SMTPFromAddress}}">
+      </div>
+      <div class="field-group">
+        <label>From Name</label>
+        <input type="text" name="smtpFromName" value="{{.SMTPFromName}}">
+      </div>
+      <button type="button" id="btn-test-email">Send Test Email</button>
+      <span id="test-email-result"></span>
+    </section>
+
+    <section>
+      <h2>General</h2>
+      <div class="field-group">
+        <label>
+          <input type="checkbox" name="maintenanceMode" {{if .MaintenanceMode}}checked{{end}}>
+          Maintenance Mode
+        </label>
+      </div>
+    </section>
+
+    <div class="action-bar">
+      <button type="submit">Save Settings</button>
+      <button type="button" id="btn-apply">Re-apply Settings</button>
+      <span id="apply-result"></span>
+    </div>
+  </form>
+</main>
+<script>
+document.getElementById('btn-test-email').addEventListener('click', async () => {
+  const r = await fetch('/api/admin/settings/test-email', { method: 'POST' });
+  document.getElementById('test-email-result').textContent = r.ok ? 'Sent!' : 'Failed.';
+});
+document.getElementById('btn-apply').addEventListener('click', async () => {
+  const r = await fetch('/api/admin/settings/apply', { method: 'POST' });
+  document.getElementById('apply-result').textContent = r.ok ? 'Applied.' : 'Error.';
+});
+</script>
+</body>
+</html>
+{{end}}

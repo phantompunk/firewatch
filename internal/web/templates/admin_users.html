@@ -1,0 +1,59 @@
+{{define "admin_users.html"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Management — Firewatch</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+{{template "admin_nav" .}}
+<main class="admin-main">
+  <div class="page-header">
+    <h1>Admin Users</h1>
+    <button id="btn-invite">Invite Admin</button>
+  </div>
+
+  <table id="users-table">
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Last Login</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .}}
+      <tr id="user-{{.ID}}">
+        <td>{{.Email}}</td>
+        <td>{{.Role}}</td>
+        <td>{{.Status}}</td>
+        <td>{{if .LastLoginAt}}{{.LastLoginAt.Format "2006-01-02 15:04"}}{{else}}Never{{end}}</td>
+        <td>
+          <button onclick="deleteUser('{{.ID}}', '{{.Email}}')">Delete</button>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</main>
+<script>
+async function deleteUser(id, email) {
+  if (!confirm('Delete ' + email + '?')) return;
+  const r = await fetch('/api/admin/users/' + id, { method: 'DELETE' });
+  if (r.ok) {
+    const row = document.getElementById('user-' + id);
+    if (row) row.remove();
+  } else {
+    alert('Failed to delete user.');
+  }
+}
+document.getElementById('btn-invite').addEventListener('click', () => {
+  alert('Invite functionality coming soon.');
+});
+</script>
+</body>
+</html>
+{{end}}

@@ -1,0 +1,16 @@
+{{define "form_preview.html"}}
+<div class="form-preview-inner">
+  <h2>{{.Page.Title}}</h2>
+  {{if .Page.Subtitle}}<p class="subtitle">{{.Page.Subtitle}}</p>{{end}}
+  {{range .Fields}}
+  <div class="field-group preview-field">
+    <label>{{.Label}}{{if .Required}} <span class="required">*</span>{{end}}</label>
+    {{if eq .Type "textarea"}}
+    <textarea disabled placeholder="{{.Placeholder}}"></textarea>
+    {{else}}<input type="text" disabled placeholder="{{.Placeholder}}">{{end}}
+    {{if .Description}}<p class="field-desc">{{.Description}}</p>{{end}}
+  </div>
+  {{end}}
+  <button disabled>{{.Page.SubmitButtonLabel}}</button>
+</div>
+{{end}}

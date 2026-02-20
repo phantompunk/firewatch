@@ -1,0 +1,115 @@
+{{define "admin_report.html"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Form Editor — Firewatch</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+{{template "admin_nav" .}}
+<main class="admin-main">
+  <div class="tab-bar">
+    <button class="tab active" data-tab="form">Form</button>
+    <button class="tab" data-tab="email">Email Template</button>
+  </div>
+
+  <div id="tab-form" class="tab-content split-panel">
+    <div class="panel panel-editor">
+      <section class="page-meta">
+        <h2>Page Settings</h2>
+        <div class="field-group">
+          <label>Title</label>
+          <input type="text" name="title" value="{{.Page.Title}}">
+        </div>
+        <div class="field-group">
+          <label>Subtitle</label>
+          <input type="text" name="subtitle" value="{{.Page.Subtitle}}">
+        </div>
+        <div class="field-group">
+          <label>Submit Button Label</label>
+          <input type="text" name="submitButtonLabel" value="{{.Page.SubmitButtonLabel}}">
+        </div>
+      </section>
+
+      <section class="field-list-section">
+        <h2>Fields</h2>
+        <div id="field-list" class="field-list">
+          {{range .Fields}}
+          <div class="field-card" id="field-{{.ID}}" data-id="{{.ID}}">
+            <div class="drag-handle">&#8991;</div>
+            <div class="field-card-body">
+              <div class="field-group">
+                <label>Label</label>
+                <input type="text" name="label" value="{{.Label}}">
+              </div>
+              <div class="field-group">
+                <label>Description</label>
+                <textarea name="description">{{.Description}}</textarea>
+              </div>
+              <div class="field-group">
+                <label>Placeholder</label>
+                <input type="text" name="placeholder" value="{{.Placeholder}}">
+              </div>
+              <div class="field-group">
+                <label>
+                  <input type="checkbox" name="required" {{if .Required}}checked{{end}}>
+                  Required
+                </label>
+              </div>
+            </div>
+          </div>
+          {{end}}
+        </div>
+      </section>
+
+      <div class="action-bar">
+        <button id="btn-save-draft">Save Draft</button>
+        <button id="btn-publish">Publish Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-email" class="tab-content" style="display:none">
+    <div class="split-panel">
+      <div class="panel">
+        <h2>Email Template</h2>
+        <textarea id="email-template" rows="20">{{.EmailTemplate}}</textarea>
+        <h3>Available Tokens</h3>
+        <ul>
+          {{range .Fields}}<li><code>{{"{{"}}{{.ID}}{{"}}"}}</code> &#8594; {{.Label}}</li>{{end}}
+        </ul>
+      </div>
+      <div class="panel">
+        <h2>Preview</h2>
+        <pre id="email-preview"></pre>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).style.display = '';
+  });
+});
+
+document.getElementById('btn-publish').addEventListener('click', () => {
+  if (confirm('Publish changes to the live form?')) {
+    fetch('/api/admin/report/apply', { method: 'POST' });
+  }
+});
+
+const textarea = document.getElementById('email-template');
+const preview = document.getElementById('email-preview');
+function updatePreview() {
+  preview.textContent = textarea ? textarea.value : '';
+}
+if (textarea) { textarea.addEventListener('input', updatePreview); updatePreview(); }
+</script>
+</body>
+</html>
+{{end}}

@@ -1,0 +1,62 @@
+{{define "report_form.html"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Page.Title}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main class="form-container">
+  <h1>{{.Page.Title}}</h1>
+  {{if .Page.Subtitle}}<p class="subtitle">{{.Page.Subtitle}}</p>{{end}}
+
+  <form id="report-form">
+    {{range .Fields}}
+    <div class="field-group">
+      <label for="{{.ID}}">{{.Label}}{{if .Required}} <span class="required">*</span>{{end}}</label>
+      {{if eq .Type "textarea"}}
+      <textarea id="{{.ID}}" name="fields[{{.ID}}]" placeholder="{{.Placeholder}}"{{if .Required}} required{{end}}></textarea>
+      {{else if eq .Type "select"}}
+      <select id="{{.ID}}" name="fields[{{.ID}}]"{{if .Required}} required{{end}}>
+        <option value="">-- Select --</option>
+        {{range .Options}}<option value="{{.}}">{{.}}</option>{{end}}
+      </select>
+      {{else}}
+      <input type="text" id="{{.ID}}" name="fields[{{.ID}}]" placeholder="{{.Placeholder}}"{{if .Required}} required{{end}}>
+      {{end}}
+      {{if .Description}}<p class="field-desc">{{.Description}}</p>{{end}}
+    </div>
+    {{end}}
+
+    <button type="submit">{{.Page.SubmitButtonLabel}}</button>
+  </form>
+  <div id="form-message" style="display:none"></div>
+</main>
+<script>
+document.getElementById('report-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const data = { fields: {} };
+  new FormData(this).forEach((v, k) => {
+    const m = k.match(/^fields\[(.+)\]$/);
+    if (m) data.fields[m[1]] = v;
+  });
+  const res = await fetch('/api/report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  const msg = document.getElementById('form-message');
+  if (res.ok) {
+    this.style.display = 'none';
+    msg.style.display = '';
+    msg.textContent = 'Your report has been submitted. Thank you.';
+  } else {
+    msg.style.display = '';
+    msg.textContent = 'Submission failed. Please try again.';
+  }
+});
+</script>
+</body>
+</html>
+{{end}}

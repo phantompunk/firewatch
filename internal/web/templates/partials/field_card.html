@@ -1,0 +1,25 @@
+{{define "field_card.html"}}
+<div class="field-card" id="field-{{.ID}}" data-id="{{.ID}}">
+  <div class="drag-handle">&#8991;</div>
+  <div class="field-card-body">
+    <div class="field-group">
+      <label>Label</label>
+      <input type="text" name="label" value="{{.Label}}">
+    </div>
+    <div class="field-group">
+      <label>Description</label>
+      <textarea name="description">{{.Description}}</textarea>
+    </div>
+    <div class="field-group">
+      <label>Placeholder</label>
+      <input type="text" name="placeholder" value="{{.Placeholder}}">
+    </div>
+    <div class="field-group">
+      <label>
+        <input type="checkbox" name="required" {{if .Required}}checked{{end}}>
+        Required
+      </label>
+    </div>
+  </div>
+</div>
+{{end}}

@@ -1,0 +1,24 @@
+{{define "base"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{block "title" .}}Firewatch{{end}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  {{block "body" .}}{{end}}
+</body>
+</html>
+{{end}}
+
+{{define "admin_nav"}}
+<nav class="admin-nav">
+  <a href="/admin/report">Form Editor</a>
+  <a href="/admin/settings">Settings</a>
+  <a href="/admin/users">Users</a>
+  <form class="nav-logout" method="POST" action="/api/admin/logout">
+    <button type="submit">Log Out</button>
+  </form>
+</nav>
+{{end}}
