@@ -7,16 +7,22 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+<nav class="public-nav">
+  <a href="/admin/login" class="btn-login">Login</a>
+</nav>
 <main class="form-container">
-  <h1>{{.Page.Title}}</h1>
-  {{if .Page.Subtitle}}<p class="subtitle">{{.Page.Subtitle}}</p>{{end}}
+  <header class="form-header">
+    <h1>{{.Page.Title}}</h1>
+    {{if .Page.Subtitle}}<p class="subtitle">{{.Page.Subtitle}}</p>{{end}}
+  </header>
 
   <form id="report-form">
     {{range .Fields}}
-    <div class="field-group">
-      <label for="{{.ID}}">{{.Label}}{{if .Required}} <span class="required">*</span>{{end}}</label>
+    <section class="field-group">
+      <h2 class="field-label">{{.Label}}{{if .Required}} <span class="required">*</span>{{end}}</h2>
+      {{if .Description}}<p class="field-desc">{{.Description}}</p>{{end}}
       {{if eq .Type "textarea"}}
-      <textarea id="{{.ID}}" name="fields[{{.ID}}]" placeholder="{{.Placeholder}}"{{if .Required}} required{{end}}></textarea>
+      <input type="text" id="{{.ID}}" name="fields[{{.ID}}]" placeholder="{{.Placeholder}}"{{if .Required}} required{{end}}>
       {{else if eq .Type "select"}}
       <select id="{{.ID}}" name="fields[{{.ID}}]"{{if .Required}} required{{end}}>
         <option value="">-- Select --</option>
@@ -25,8 +31,7 @@
       {{else}}
       <input type="text" id="{{.ID}}" name="fields[{{.ID}}]" placeholder="{{.Placeholder}}"{{if .Required}} required{{end}}>
       {{end}}
-      {{if .Description}}<p class="field-desc">{{.Description}}</p>{{end}}
-    </div>
+    </section>
     {{end}}
 
     <button type="submit">{{.Page.SubmitButtonLabel}}</button>

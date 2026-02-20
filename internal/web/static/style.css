@@ -20,15 +20,26 @@ body {
 }
 
 /* Forms */
-.field-group { margin-bottom: var(--spacing); }
-.field-group label { display: block; font-weight: 500; margin-bottom: 0.25rem; }
-.field-group input, .field-group textarea, .field-group select {
-  width: 100%; padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border); border-radius: var(--radius);
-  font: inherit; background: var(--color-surface);
+.field-group {
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  background: var(--color-surface);
 }
-.field-group textarea { resize: vertical; min-height: 100px; }
-.field-desc { font-size: 0.875rem; color: var(--color-muted); margin-top: 0.25rem; }
+.field-label {
+  font-size: 1.25rem;
+  font-weight: 600;
+  padding-bottom: 0.65rem;
+  margin-bottom: 0.65rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.field-group input, .field-group select {
+  width: 100%; padding: 0.65rem 1rem;
+  border: 1px solid var(--color-border); border-radius: var(--radius);
+  font: inherit; font-size: 1rem; background: var(--color-bg);
+}
+.field-desc { font-size: 1rem; color: var(--color-muted); margin-bottom: 0.75rem; }
 .required { color: var(--color-danger); }
 .error { color: var(--color-danger); padding: 0.75rem; background: #fff0f0; border-radius: var(--radius); margin-bottom: var(--spacing); }
 
@@ -39,10 +50,29 @@ button {
 }
 button:disabled { opacity: 0.6; cursor: not-allowed; }
 
+/* Public nav */
+.public-nav {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+.btn-login {
+  text-decoration: none;
+  font-size: 0.9rem;
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.9rem;
+}
+.btn-login:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
 /* Public form */
-.form-container { max-width: 680px; margin: 3rem auto; padding: 0 var(--spacing); }
-.form-container h1 { margin-bottom: 0.5rem; }
-.subtitle { color: var(--color-muted); margin-bottom: 2rem; }
+.form-container { max-width: 800px; margin: 3rem auto; padding: 0 2rem; font-size: 1.05rem; }
+.form-header { text-align: center; margin-bottom: 2.5rem; }
+.form-header h1 { font-size: 2rem; margin-bottom: 0.6rem; }
+.subtitle { font-size: 1.05rem; color: var(--color-muted); }
 
 /* Login */
 .login-container { max-width: 400px; margin: 8rem auto; padding: 2rem; background: var(--color-surface); border-radius: var(--radius); box-shadow: 0 2px 8px rgba(0,0,0,.1); }
