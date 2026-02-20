@@ -17,13 +17,14 @@ type settingsStore interface {
 
 // SettingsHandler handles admin settings views and API.
 type SettingsHandler struct {
+	BaseHandler
 	settings  settingsStore
 	mailer    *mailer.Mailer
 	templates *template.Template
 }
 
-func NewSettingsHandler(settings settingsStore, m *mailer.Mailer, tmpl *template.Template) *SettingsHandler {
-	return &SettingsHandler{settings: settings, mailer: m, templates: tmpl}
+func NewSettingsHandler(logger *slog.Logger, settings settingsStore, m *mailer.Mailer, tmpl *template.Template) *SettingsHandler {
+	return &SettingsHandler{BaseHandler: BaseHandler{Logger: logger}, settings: settings, mailer: m, templates: tmpl}
 }
 
 // Page renders the admin settings page.
@@ -41,14 +42,31 @@ func (h *SettingsHandler) Page(w http.ResponseWriter, r *http.Request) {
 
 // Get returns the current settings as JSON (with secrets masked).
 func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
-	// TODO: implement
-	w.WriteHeader(http.StatusNotImplemented)
+	s, err := h.settings.Load(r.Context())
+	if err != nil {
+		h.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = h.writeJSON(w, http.StatusOK, s, nil)
+	if err != nil {
+		h.serverErrorResponse(w, r, err)
+		return 
+	}
 }
 
 // Update saves updated settings.
 func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
-	// TODO: implement
-	w.WriteHeader(http.StatusNotImplemented)
+	s := &model.AppSettings{}
+	if err := h.readJSON(w, r, &s); err != nil {
+		h.serverErrorResponse(w,r,err)
+		return 
+	}
+
+	if err := h.settings.Save(r.Context(),s); err!=nil {
+		h.serverErrorResponse(w,r,err)
+		return
+	}
 }
 
 // Apply re-initialises the mailer with current settings.

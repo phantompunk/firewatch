@@ -17,13 +17,14 @@ type schemaLoader interface {
 
 // ReportHandler handles the public report form and submission.
 type ReportHandler struct {
+	BaseHandler
 	schemas   schemaLoader
 	mailer    *mailer.Mailer
 	templates *template.Template
 }
 
-func NewReportHandler(schemas schemaLoader, m *mailer.Mailer, tmpl *template.Template) *ReportHandler {
-	return &ReportHandler{schemas: schemas, mailer: m, templates: tmpl}
+func NewReportHandler(logger *slog.Logger, schemas schemaLoader, m *mailer.Mailer, tmpl *template.Template) *ReportHandler {
+	return &ReportHandler{BaseHandler: BaseHandler{Logger: logger}, schemas: schemas, mailer: m, templates: tmpl}
 }
 
 // Form renders the public report form.
@@ -36,6 +37,21 @@ func (h *ReportHandler) Form(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.templates.ExecuteTemplate(w, "report_form.html", schema); err != nil {
 		slog.Error("report: template error", "err", err)
+	}
+}
+
+func (h *ReportHandler) Get(w http.ResponseWriter, r *http.Request) {
+	schema, err := h.schemas.LiveSchema(r.Context())
+	if err != nil {
+		h.Logger.Error("report: failed to load live schema", "err", err)
+		h.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = h.writeJSON(w, http.StatusOK, envelope{"schema": schema}, nil)
+	if err != nil {
+		h.serverErrorResponse(w, r, err)
+		return
 	}
 }
 
