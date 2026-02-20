@@ -97,7 +97,45 @@ document.querySelectorAll('.tab').forEach(btn => {
   });
 });
 
-document.getElementById('btn-publish').addEventListener('click', () => {
+document.getElementById('btn-save-draft').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-save-draft');
+
+  const pageMeta = document.querySelector('.page-meta');
+  const page = {
+    title: pageMeta.querySelector('[name="title"]').value,
+    subtitle: pageMeta.querySelector('[name="subtitle"]').value,
+    submitButtonLabel: pageMeta.querySelector('[name="submitButtonLabel"]').value,
+  };
+
+  const fields = Array.from(document.querySelectorAll('.field-card')).map((card, i) => ({
+    id: card.dataset.id,
+    label: card.querySelector('[name="label"]').value,
+    description: card.querySelector('[name="description"]').value,
+    placeholder: card.querySelector('[name="placeholder"]').value,
+    required: card.querySelector('[name="required"]').checked,
+    order: i + 1,
+  }));
+
+  const emailTemplate = document.getElementById('email-template')?.value ?? '';
+
+  btn.textContent = 'Saving…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/admin/report', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page, fields, emailTemplate }),
+    });
+    btn.textContent = res.ok ? 'Saved' : 'Error';
+  } catch {
+    btn.textContent = 'Error';
+  } finally {
+    setTimeout(() => { btn.textContent = 'Save Draft'; btn.disabled = false; }, 2000);
+  }
+});
+
+document.getElementById('btn-publishes').addEventListener('click', () => {
   if (confirm('Publish changes to the live form?')) {
     fetch('/api/admin/report/apply', { method: 'POST' });
   }

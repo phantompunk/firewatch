@@ -25,9 +25,4 @@ func main() {
 		slog.Error("server failed", "error", err)
 		os.Exit(1)
 	}
-
-	// m := mailer.New()
-	// if settings != nil {
-	// 	m.Reconfigure(settings)
-	// }
 }
