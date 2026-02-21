@@ -22,7 +22,7 @@ func (app App) routes() http.Handler {
 	r.Get("/api/health", handler.Health(app.db))
 
 	// Public report form
-	reportHandler := handler.NewReportHandler(app.logger, app.schemaStore, app.mailer, web.Templates)
+	reportHandler := handler.NewReportHandler(app.logger, app.schemaStore, app.sessionStore, app.mailer, web.Templates)
 	r.Get("/", reportHandler.Form)
 	r.Get("/api/report", reportHandler.Get)
 

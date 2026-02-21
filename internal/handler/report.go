@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/firewatch/internal/mailer"
+	"github.com/firewatch/internal/middleware"
 	"github.com/firewatch/internal/model"
 )
 
@@ -19,12 +20,18 @@ type schemaLoader interface {
 type ReportHandler struct {
 	BaseHandler
 	schemas   schemaLoader
+	sessions  middleware.SessionReader
 	mailer    *mailer.Mailer
 	templates *template.Template
 }
 
-func NewReportHandler(logger *slog.Logger, schemas schemaLoader, m *mailer.Mailer, tmpl *template.Template) *ReportHandler {
-	return &ReportHandler{BaseHandler: BaseHandler{Logger: logger}, schemas: schemas, mailer: m, templates: tmpl}
+type reportFormData struct {
+	*model.ReportSchema
+	IsAdmin bool
+}
+
+func NewReportHandler(logger *slog.Logger, schemas schemaLoader, sessions middleware.SessionReader, m *mailer.Mailer, tmpl *template.Template) *ReportHandler {
+	return &ReportHandler{BaseHandler: BaseHandler{Logger: logger}, schemas: schemas, sessions: sessions, mailer: m, templates: tmpl}
 }
 
 // Form renders the public report form.
@@ -35,7 +42,16 @@ func (h *ReportHandler) Form(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	if err := h.templates.ExecuteTemplate(w, "report_form.html", schema); err != nil {
+
+	isAdmin := false
+	if cookie, err := r.Cookie(middleware.SessionCookieName); err == nil {
+		if _, err := h.sessions.GetUserID(r.Context(), cookie.Value); err == nil {
+			isAdmin = true
+		}
+	}
+
+	data := reportFormData{ReportSchema: schema, IsAdmin: isAdmin}
+	if err := h.templates.ExecuteTemplate(w, "report_form.html", data); err != nil {
 		slog.Error("report: template error", "err", err)
 	}
 }
