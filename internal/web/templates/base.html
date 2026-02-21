@@ -13,12 +13,23 @@
 {{end}}
 
 {{define "admin_nav"}}
-<nav class="admin-nav">
-  <a href="/admin/report">Form Editor</a>
-  <a href="/admin/settings">Settings</a>
-  <a href="/admin/users">Users</a>
-  <form class="nav-logout" method="POST" action="/api/admin/logout">
-    <button type="submit">Log Out</button>
-  </form>
+<nav class="admin-sidebar">
+  <div class="sidebar-brand">&#128293; Firewatch</div>
+  <div class="sidebar-links">
+    <a href="/admin/report" class="sidebar-link">Form Editor</a>
+    <a href="/admin/settings" class="sidebar-link">Settings</a>
+    <a href="/admin/users" class="sidebar-link">Users</a>
+  </div>
+  <div class="sidebar-bottom">
+    <a href="/" target="_blank" class="sidebar-live-link">&#8599; View Live Page</a>
+    <form method="POST" action="/api/admin/logout">
+      <button type="submit" class="sidebar-logout-btn">Log Out</button>
+    </form>
+  </div>
 </nav>
+<script>
+  document.querySelectorAll('.sidebar-link').forEach(function(a) {
+    if (a.getAttribute('href') === location.pathname) a.classList.add('active');
+  });
+</script>
 {{end}}

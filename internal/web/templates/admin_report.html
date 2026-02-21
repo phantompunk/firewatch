@@ -8,8 +8,10 @@
   <script src="/static/sortable.min.js"></script>
   <script src="/static/alpine.min.js" defer></script>
 </head>
-<body x-data="formEditor({{.SchemaJSON}})" x-init="init()">
+<body>
+<div class="admin-shell" x-data="formEditor({{.SchemaJSON}})" x-init="init()">
 {{template "admin_nav" .}}
+<div class="admin-content">
 
 <!-- Tab bar + action bar -->
 <div class="editor-topbar">
@@ -60,8 +62,10 @@
         </template>
       </div>
 
+      <button class="canvas-add-field-btn" @click.stop="addField()">+ Add Field</button>
       <button disabled x-text="schema.page.submitButtonLabel"
               class="canvas-submit-btn"></button>
+
     </div>
   </div>
 
@@ -93,6 +97,10 @@
     <template x-if="selectedField !== null">
       <div class="inspector-content">
         <h3 x-text="'Field: ' + selectedField.label"></h3>
+        <div class="inspector-field">
+          <label>ID</label>
+          <input type="text" :value="selectedField.id" @change="selectedField.id = $event.target.value">
+        </div>
         <div class="inspector-field">
           <label>Label</label>
           <input type="text" x-model="selectedField.label">
@@ -129,22 +137,31 @@
 
 <!-- Email Template Tab -->
 <div x-show="activeTab === 'email'" class="editor-layout editor-email">
-  <div class="panel">
-    <h2>Email Template</h2>
-    <textarea id="email-template" x-model="schema.emailTemplate" rows="20"></textarea>
-    <h3>Available Tokens</h3>
-    <ul>
+  <div class="email-editor-panel">
+    <div class="email-panel-header">
+      <h2>Template</h2>
+    </div>
+    <textarea id="email-template" class="email-textarea" x-model="schema.emailTemplate" spellcheck="false"></textarea>
+    <div class="token-bar">
+      <span class="token-bar-label">Insert</span>
       <template x-for="field in schema.fields" :key="field.id">
-        <li><code x-text="'{' + '{' + field.id + '}' + '}'"></code>
-            &#8594; <span x-text="field.label"></span></li>
+        <button class="token-chip" @click="insertToken(field.id)"
+                x-text="field.label"
+                :title="'{' + '{' + field.id + '}' + '}'"></button>
       </template>
-    </ul>
+      <span x-show="schema.fields.length === 0" class="token-bar-empty">No fields defined yet.</span>
+    </div>
   </div>
-  <div class="panel">
-    <h2>Preview</h2>
-    <pre x-text="schema.emailTemplate"></pre>
+  <div class="email-preview-panel">
+    <div class="email-panel-header">
+      <h2>Preview</h2>
+    </div>
+    <pre class="email-preview-body" x-text="emailPreview()"></pre>
   </div>
 </div>
+
+</div><!-- admin-content -->
+</div><!-- admin-shell -->
 
 <script>
 function formEditor(initialSchema) {
@@ -188,6 +205,39 @@ function formEditor(initialSchema) {
       const fields = [...this.schema.fields];
       [fields[i - 1], fields[i]] = [fields[i], fields[i - 1]];
       this.schema.fields = fields.map((f, idx) => ({ ...f, order: idx + 1 }));
+    },
+
+    insertToken(fieldId) {
+      const token = '{' + '{' + fieldId + '}' + '}';
+      const el = document.getElementById('email-template');
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      this.schema.emailTemplate =
+        this.schema.emailTemplate.slice(0, start) + token + this.schema.emailTemplate.slice(end);
+      this.$nextTick(() => {
+        el.focus();
+        el.setSelectionRange(start + token.length, start + token.length);
+      });
+    },
+
+    emailPreview() {
+      return this.schema.fields.reduce((tpl, field) => {
+        return tpl.replaceAll('{' + '{' + field.id + '}' + '}', field.placeholder || field.label);
+      }, this.schema.emailTemplate);
+    },
+
+    addField() {
+      const id = 'field_' + Date.now();
+      this.schema.fields.push({
+        id: "newfield",
+        label: 'New Field',
+        description: 'Field description',
+        placeholder: 'Field placeholder',
+        required: false,
+        type: 'text',
+        order: this.schema.fields.length + 1,
+      });
+      this.$nextTick(() => this.selectItem(id));
     },
 
     moveDown() {

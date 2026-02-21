@@ -7,8 +7,9 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+<div class="admin-shell">
 {{template "admin_nav" .}}
-<main class="admin-main">
+<main class="admin-content admin-main">
   <div class="page-header">
     <h1>Admin Users</h1>
     <button id="btn-invite">Invite Admin</button>
@@ -39,6 +40,7 @@
     </tbody>
   </table>
 </main>
+</div><!-- admin-shell -->
 <script>
 async function deleteUser(id, email) {
   if (!confirm('Delete ' + email + '?')) return;
