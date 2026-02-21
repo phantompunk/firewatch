@@ -45,7 +45,6 @@ func SeedFirstAdmin(ctx context.Context, users UserCreator) {
 		return
 	}
 
-	slog.Info("Seed", "email", email, "password", password)
 	count, err := users.CountAll(ctx)
 	if err != nil {
 		slog.Error("seed: failed to count admin users", "err", err)

@@ -125,6 +125,7 @@
 document.getElementById('settings-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));
+  data.smtpPort = parseInt(data.smtpPort, 10) || 0;
   data.maintenanceMode = !!e.target.querySelector('[name="maintenanceMode"]').checked;
   const r = await fetch('/api/admin/settings', {
     method: 'PUT',

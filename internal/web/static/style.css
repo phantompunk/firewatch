@@ -517,8 +517,8 @@ section h2 { margin-bottom: 1rem; }
 }
 
 .email-textarea {
-  flex: 1;
-  resize: none;
+  height: 320px;
+  resize: vertical;
   font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
   font-size: 0.875rem;
   line-height: 1.65;
@@ -570,7 +570,7 @@ section h2 { margin-bottom: 1rem; }
 }
 
 .email-preview-body {
-  flex: 1;
+  overflow-y: auto;
   white-space: pre-wrap;
   font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
   font-size: 0.875rem;

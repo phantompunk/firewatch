@@ -59,12 +59,21 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	s := &model.AppSettings{}
 	if err := h.readJSON(w, r, &s); err != nil {
-		h.serverErrorResponse(w,r,err)
-		return 
+		h.serverErrorResponse(w, r, err)
+		return
 	}
 
-	if err := h.settings.Save(r.Context(),s); err!=nil {
-		h.serverErrorResponse(w,r,err)
+	if s.SMTPPass == "" {
+		current, err := h.settings.Load(r.Context())
+		if err != nil {
+			h.serverErrorResponse(w, r, err)
+			return
+		}
+		s.SMTPPass = current.SMTPPass
+	}
+
+	if err := h.settings.Save(r.Context(), s); err != nil {
+		h.serverErrorResponse(w, r, err)
 		return
 	}
 }
