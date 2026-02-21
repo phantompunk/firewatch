@@ -5,148 +5,222 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Report Form Editor — Firewatch</title>
   <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/sortable.min.js"></script>
+  <script src="/static/alpine.min.js" defer></script>
 </head>
-<body>
+<body x-data="formEditor({{.SchemaJSON}})" x-init="init()">
 {{template "admin_nav" .}}
-<main class="admin-main">
+
+<!-- Tab bar + action bar -->
+<div class="editor-topbar">
   <div class="tab-bar">
-    <button class="tab active" data-tab="form">Form</button>
-    <button class="tab" data-tab="email">Email Template</button>
+    <button class="tab" :class="{ active: activeTab === 'form' }"
+            @click="activeTab = 'form'">Form</button>
+    <button class="tab" :class="{ active: activeTab === 'email' }"
+            @click="activeTab = 'email'">Email Template</button>
   </div>
+  <div class="action-bar">
+    <button @click="saveDraft()" :disabled="saving"
+            x-text="saving ? 'Saving…' : 'Save Draft'"></button>
+    <button @click="publish()">Publish Changes</button>
+  </div>
+</div>
 
-  <div id="tab-form" class="tab-content split-panel">
-    <div class="panel panel-editor">
-      <section class="page-meta">
-        <h2>Page Settings</h2>
-        <div class="field-group">
-          <label>Title</label>
-          <input type="text" name="title" value="{{.Page.Title}}">
-        </div>
-        <div class="field-group">
-          <label>Subtitle</label>
-          <input type="text" name="subtitle" value="{{.Page.Subtitle}}">
-        </div>
-        <div class="field-group">
-          <label>Submit Button Label</label>
-          <input type="text" name="submitButtonLabel" value="{{.Page.SubmitButtonLabel}}">
-        </div>
-      </section>
+<!-- Form Tab -->
+<div x-show="activeTab === 'form'" class="editor-layout">
+  <!-- Center Canvas -->
+  <div class="canvas-panel">
+    <div class="canvas-inner">
+      <!-- Page header item -->
+      <div class="canvas-section canvas-page-header"
+           :class="{ selected: isPageSelected }"
+           @click="selectItem('__page__')">
+        <header class="form-header" style="margin-bottom:0">
+          <h1 x-text="schema.page.title"></h1>
+          <p class="subtitle" x-show="schema.page.subtitle" x-text="schema.page.subtitle"></p>
+        </header>
+      </div>
 
-      <section class="field-list-section">
-        <h2>Fields</h2>
-        <div id="field-list" class="field-list">
-          {{range .Fields}}
-          <div class="field-card" id="field-{{.ID}}" data-id="{{.ID}}">
-            <div class="drag-handle">&#8991;</div>
-            <div class="field-card-body">
-              <div class="field-group">
-                <label>Label</label>
-                <input type="text" name="label" value="{{.Label}}">
-              </div>
-              <div class="field-group">
-                <label>Description</label>
-                <textarea name="description">{{.Description}}</textarea>
-              </div>
-              <div class="field-group">
-                <label>Placeholder</label>
-                <input type="text" name="placeholder" value="{{.Placeholder}}">
-              </div>
-              <div class="field-group">
-                <label>
-                  <input type="checkbox" name="required" {{if .Required}}checked{{end}}>
-                  Required
-                </label>
-              </div>
-            </div>
+      <!-- Field items (SortableJS target) -->
+      <div id="canvas-fields">
+        <template x-for="field in schema.fields" :key="field.id">
+          <div class="canvas-section canvas-field"
+               :class="{ selected: selectedId === field.id }"
+               :data-field-id="field.id"
+               @click="selectItem(field.id)">
+            <div class="drag-handle canvas-drag-handle">&#10303;</div>
+            <section class="field-group canvas-field-group">
+              <h2 class="field-label">
+                <span x-text="field.label"></span><template x-if="field.required"><span class="required"> *</span></template>
+              </h2>
+              <p class="field-desc" x-show="field.description" x-text="field.description"></p>
+              <input type="text" disabled :placeholder="field.placeholder">
+            </section>
           </div>
-          {{end}}
+        </template>
+      </div>
+
+      <button disabled x-text="schema.page.submitButtonLabel"
+              class="canvas-submit-btn"></button>
+    </div>
+  </div>
+
+  <!-- Side Inspector -->
+  <div class="inspector-panel">
+    <!-- Empty state -->
+    <div class="inspector-empty" x-show="selectedId === null">
+      <p>Select a field or the page header to edit its properties.</p>
+    </div>
+
+    <!-- Page Settings inspector -->
+    <div class="inspector-content" x-show="isPageSelected">
+      <h3>Page Settings</h3>
+      <div class="inspector-field">
+        <label>Title</label>
+        <input type="text" x-model="schema.page.title">
+      </div>
+      <div class="inspector-field">
+        <label>Subtitle</label>
+        <input type="text" x-model="schema.page.subtitle">
+      </div>
+      <div class="inspector-field">
+        <label>Submit Button Label</label>
+        <input type="text" x-model="schema.page.submitButtonLabel">
+      </div>
+    </div>
+
+    <!-- Field inspector -->
+    <template x-if="selectedField !== null">
+      <div class="inspector-content">
+        <h3 x-text="'Field: ' + selectedField.label"></h3>
+        <div class="inspector-field">
+          <label>Label</label>
+          <input type="text" x-model="selectedField.label">
         </div>
-      </section>
-
-      <div class="action-bar">
-        <button id="btn-save-draft">Save Draft</button>
-        <button id="btn-publish">Publish Changes</button>
+        <div class="inspector-field">
+          <label>Description</label>
+          <textarea x-model="selectedField.description" rows="3"></textarea>
+        </div>
+        <div class="inspector-field">
+          <label>Placeholder</label>
+          <input type="text" x-model="selectedField.placeholder">
+        </div>
+        <div class="inspector-field">
+          <label class="toggle-label">
+            <span>Required</span>
+            <span class="toggle-switch">
+              <input type="checkbox" x-model="selectedField.required">
+              <span class="toggle-track"></span>
+            </span>
+          </label>
+        </div>
+        <div class="inspector-order-btns">
+          <button class="order-btn" @click="moveUp()"
+                  :disabled="selectedIndex === 0"
+                  title="Move up">&#8593; Move up</button>
+          <button class="order-btn" @click="moveDown()"
+                  :disabled="selectedIndex === schema.fields.length - 1"
+                  title="Move down">&#8595; Move down</button>
+        </div>
       </div>
-    </div>
+    </template>
   </div>
+</div>
 
-  <div id="tab-email" class="tab-content" style="display:none">
-    <div class="split-panel">
-      <div class="panel">
-        <h2>Email Template</h2>
-        <textarea id="email-template" rows="20">{{.EmailTemplate}}</textarea>
-        <h3>Available Tokens</h3>
-        <ul>
-          {{range .Fields}}<li><code>{{"{{"}}{{.ID}}{{"}}"}}</code> &#8594; {{.Label}}</li>{{end}}
-        </ul>
-      </div>
-      <div class="panel">
-        <h2>Preview</h2>
-        <pre id="email-preview"></pre>
-      </div>
-    </div>
+<!-- Email Template Tab -->
+<div x-show="activeTab === 'email'" class="editor-layout editor-email">
+  <div class="panel">
+    <h2>Email Template</h2>
+    <textarea id="email-template" x-model="schema.emailTemplate" rows="20"></textarea>
+    <h3>Available Tokens</h3>
+    <ul>
+      <template x-for="field in schema.fields" :key="field.id">
+        <li><code x-text="'{' + '{' + field.id + '}' + '}'"></code>
+            &#8594; <span x-text="field.label"></span></li>
+      </template>
+    </ul>
   </div>
-</main>
+  <div class="panel">
+    <h2>Preview</h2>
+    <pre x-text="schema.emailTemplate"></pre>
+  </div>
+</div>
+
 <script>
-document.querySelectorAll('.tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-    btn.classList.add('active');
-    document.getElementById('tab-' + btn.dataset.tab).style.display = '';
-  });
-});
+function formEditor(initialSchema) {
+  return {
+    schema: initialSchema,
+    selectedId: '__page__',
+    saving: false,
+    activeTab: 'form',
 
-document.getElementById('btn-save-draft').addEventListener('click', async () => {
-  const btn = document.getElementById('btn-save-draft');
+    get selectedField() {
+      if (!this.selectedId || this.selectedId === '__page__') return null;
+      return this.schema.fields.find(f => f.id === this.selectedId) ?? null;
+    },
 
-  const pageMeta = document.querySelector('.page-meta');
-  const page = {
-    title: pageMeta.querySelector('[name="title"]').value,
-    subtitle: pageMeta.querySelector('[name="subtitle"]').value,
-    submitButtonLabel: pageMeta.querySelector('[name="submitButtonLabel"]').value,
+    get selectedIndex() {
+      return this.schema.fields.findIndex(f => f.id === this.selectedId);
+    },
+
+    get isPageSelected() { return this.selectedId === '__page__'; },
+
+    init() {
+      Sortable.create(document.getElementById('canvas-fields'), {
+        handle: '.drag-handle',
+        animation: 150,
+        onEnd: () => {
+          const ids = [...document.querySelectorAll('#canvas-fields [data-field-id]')]
+            .map(el => el.dataset.fieldId);
+          this.schema.fields = ids.map((id, i) => ({
+            ...this.schema.fields.find(f => f.id === id),
+            order: i + 1,
+          }));
+        },
+      });
+    },
+
+    selectItem(id) { this.selectedId = this.selectedId === id ? '__page__' : id; },
+
+    moveUp() {
+      const i = this.selectedIndex;
+      if (i <= 0) return;
+      const fields = [...this.schema.fields];
+      [fields[i - 1], fields[i]] = [fields[i], fields[i - 1]];
+      this.schema.fields = fields.map((f, idx) => ({ ...f, order: idx + 1 }));
+    },
+
+    moveDown() {
+      const i = this.selectedIndex;
+      if (i < 0 || i >= this.schema.fields.length - 1) return;
+      const fields = [...this.schema.fields];
+      [fields[i], fields[i + 1]] = [fields[i + 1], fields[i]];
+      this.schema.fields = fields.map((f, idx) => ({ ...f, order: idx + 1 }));
+    },
+
+    async saveDraft() {
+      this.saving = true;
+      try {
+        await fetch('/api/admin/report', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            page: this.schema.page,
+            fields: this.schema.fields,
+            emailTemplate: this.schema.emailTemplate,
+          }),
+        });
+      } finally {
+        setTimeout(() => { this.saving = false; }, 1500);
+      }
+    },
+
+    async publish() {
+      if (!confirm('Publish changes to the live form?')) return;
+      await fetch('/api/admin/report/apply', { method: 'POST' });
+    },
   };
-
-  const fields = Array.from(document.querySelectorAll('.field-card')).map((card, i) => ({
-    id: card.dataset.id,
-    label: card.querySelector('[name="label"]').value,
-    description: card.querySelector('[name="description"]').value,
-    placeholder: card.querySelector('[name="placeholder"]').value,
-    required: card.querySelector('[name="required"]').checked,
-    order: i + 1,
-  }));
-
-  const emailTemplate = document.getElementById('email-template')?.value ?? '';
-
-  btn.textContent = 'Saving…';
-  btn.disabled = true;
-
-  try {
-    const res = await fetch('/api/admin/report', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ page, fields, emailTemplate }),
-    });
-    btn.textContent = res.ok ? 'Saved' : 'Error';
-  } catch {
-    btn.textContent = 'Error';
-  } finally {
-    setTimeout(() => { btn.textContent = 'Save Draft'; btn.disabled = false; }, 2000);
-  }
-});
-
-document.getElementById('btn-publishes').addEventListener('click', () => {
-  if (confirm('Publish changes to the live form?')) {
-    fetch('/api/admin/report/apply', { method: 'POST' });
-  }
-});
-
-const textarea = document.getElementById('email-template');
-const preview = document.getElementById('email-preview');
-function updatePreview() {
-  preview.textContent = textarea ? textarea.value : '';
 }
-if (textarea) { textarea.addEventListener('input', updatePreview); updatePreview(); }
 </script>
 </body>
 </html>

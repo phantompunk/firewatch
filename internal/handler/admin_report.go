@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -9,6 +10,11 @@ import (
 	appmw "github.com/firewatch/internal/middleware"
 	"github.com/firewatch/internal/model"
 )
+
+type adminReportPageData struct {
+	model.ReportSchema
+	SchemaJSON template.JS
+}
 
 type schemaDraftStore interface {
 	DraftSchema(ctx context.Context) (*model.ReportSchema, error)
@@ -35,7 +41,12 @@ func (h *AdminReportHandler) Page(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	if err := h.templates.ExecuteTemplate(w, "admin_report.html", schema); err != nil {
+	jsonBytes, _ := json.Marshal(schema)
+	data := adminReportPageData{
+		ReportSchema: *schema,
+		SchemaJSON:   template.JS(jsonBytes),
+	}
+	if err := h.templates.ExecuteTemplate(w, "admin_report.html", data); err != nil {
 		slog.Error("admin_report: template error", "err", err)
 	}
 }
