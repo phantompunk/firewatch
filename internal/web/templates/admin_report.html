@@ -28,14 +28,21 @@
             x-text="{ saved: '✓', unsaved: '●', saving: '↻', error: '✕' }[saveStatus]"></span>
       <span x-text="{ saved: 'Saved', unsaved: 'Unsaved', saving: 'Saving…', error: 'Failed' }[saveStatus]"></span>
     </button>
+    <label class="topbar-toggle" x-show="activeTab === 'form'">
+      <span>Preview</span>
+      <span class="toggle-switch">
+        <input type="checkbox" x-model="preview">
+        <span class="toggle-track"></span>
+      </span>
+    </label>
     <button @click="publish()">Publish Changes</button>
   </div>
 </div>
 
 <!-- Form Tab -->
-<div x-show="activeTab === 'form'" class="editor-layout">
+<div x-show="activeTab === 'form'" class="editor-layout" :class="{ 'editor-preview': preview }">
   <!-- Field Palette -->
-  <div class="field-palette" id="field-palette">
+  <div class="field-palette" id="field-palette" x-show="!preview">
     <div class="field-palette-title">Fields</div>
     <div class="palette-item" data-type="text" @click="addField('text')">
       <span class="palette-item-icon">—</span>Short Text
@@ -53,8 +60,8 @@
     <div class="canvas-inner">
       <!-- Page header item -->
       <div class="canvas-section canvas-page-header"
-           :class="{ selected: isPageSelected }"
-           @click="selectItem('__page__')">
+           :class="{ selected: isPageSelected && !preview }"
+           @click="!preview && selectItem('__page__')">
         <header class="form-header" style="margin-bottom:0">
           <h1 x-text="schema.page.title"></h1>
           <p class="subtitle" x-show="schema.page.subtitle" x-text="schema.page.subtitle"></p>
@@ -65,9 +72,9 @@
       <div id="canvas-fields">
         <template x-for="field in schema.fields" :key="field.id">
           <div class="canvas-section canvas-field"
-               :class="{ selected: selectedId === field.id }"
+               :class="{ selected: selectedId === field.id && !preview }"
                :data-field-id="field.id"
-               @click="selectItem(field.id)">
+               @click="!preview && selectItem(field.id)">
             <div class="drag-handle canvas-drag-handle">&#10303;</div>
             <section class="field-group canvas-field-group">
               <template x-if="field.type !== 'accordion'">
@@ -76,9 +83,9 @@
                     <span x-text="field.label"></span><template x-if="field.required"><span class="required"> *</span></template>
                   </h2>
                   <p class="field-desc" x-show="field.description" x-text="field.description"></p>
-                  <input type="text" disabled :placeholder="field.placeholder"
+                  <input type="text" :disabled="!preview" :placeholder="field.placeholder"
                          x-show="field.type === 'text'">
-                  <textarea disabled :placeholder="field.placeholder" rows="3"
+                  <textarea :disabled="!preview" :placeholder="field.placeholder" rows="3"
                             x-show="field.type === 'textarea'"></textarea>
                 </div>
               </template>
@@ -97,14 +104,14 @@
         </template>
       </div>
 
-      <button disabled x-text="schema.page.submitButtonLabel"
+      <button :disabled="!preview" x-text="schema.page.submitButtonLabel"
               class="canvas-submit-btn"></button>
 
     </div>
   </div>
 
   <!-- Side Inspector -->
-  <div class="inspector-panel">
+  <div class="inspector-panel" x-show="!preview">
     <!-- Empty state -->
     <div class="inspector-empty" x-show="selectedId === null">
       <p>Select a field or the page header to edit its properties.</p>
@@ -134,6 +141,11 @@
         <div class="inspector-field">
           <label>ID</label>
           <input type="text" :value="selectedField.id" @change="selectedField.id = $event.target.value">
+        </div>
+        <div class="inspector-field">
+          <label>Type</label>
+          <input type="text" disabled
+                 :value="{ text: 'Short Text', textarea: 'Long Text', accordion: 'Accordion' }[selectedField.type]">
         </div>
         <div class="inspector-field">
           <label>Label</label>
@@ -178,13 +190,13 @@
   <!-- Token Palette -->
   <div class="field-palette">
     <div class="field-palette-title">Insert Field</div>
-    <template x-for="field in schema.fields" :key="field.id">
+    <template x-for="field in schema.fields.filter(f => f.type !== 'accordion')" :key="field.id">
       <div class="palette-item palette-item--token" @click="insertToken(field.id)"
            :title="'{' + '{' + field.id + '}' + '}'">
         <span x-text="field.label"></span>
       </div>
     </template>
-    <div x-show="schema.fields.length === 0" class="field-palette-empty">No fields defined yet.</div>
+    <div x-show="schema.fields.filter(f => f.type !== 'accordion').length === 0" class="field-palette-empty">No insertable fields.</div>
   </div>
 
   <div class="email-editor-panel">
@@ -212,6 +224,7 @@ function formEditor(initialSchema) {
     saveStatus: 'saved',
     _saveTimer: null,
     activeTab: 'form',
+    preview: false,
 
     get selectedField() {
       if (!this.selectedId || this.selectedId === '__page__') return null;

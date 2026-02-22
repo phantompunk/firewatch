@@ -361,6 +361,23 @@ section h2 { margin-bottom: 1rem; }
   padding: 2rem;
   background: var(--color-bg);
 }
+.topbar-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.editor-layout.editor-preview { grid-template-columns: 1fr; }
+.editor-preview .canvas-section { outline: none; cursor: default; }
+.editor-preview .canvas-section:hover { outline-color: transparent; }
+.editor-preview .canvas-section.selected { outline-color: transparent; }
+.editor-preview .canvas-drag-handle { display: none; }
+.editor-preview .canvas-delete-btn { display: none; }
+.editor-preview .canvas-accordion { pointer-events: auto; }
+.editor-preview .canvas-submit-btn { opacity: 1; cursor: pointer; }
 .canvas-inner {
   max-width: 680px;
   margin: 0 auto;
@@ -548,6 +565,14 @@ section h2 { margin-bottom: 1rem; }
   margin-bottom: 0.35rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+.inspector-field input:disabled {
+  border-color: var(--color-border);
+  background: #e9ecef;
+  color: var(--color-muted);
+  cursor: default;
+  opacity: 1;
+  font-style: italic;
 }
 .inspector-field input:not([type="checkbox"]),
 .inspector-field textarea,
