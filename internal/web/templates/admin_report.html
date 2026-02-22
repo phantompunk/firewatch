@@ -22,8 +22,12 @@
             @click="activeTab = 'email'">Email Template</button>
   </div>
   <div class="action-bar">
-    <button @click="saveDraft()" :disabled="saving"
-            x-text="saving ? 'Saving…' : 'Save Draft'"></button>
+    <button class="save-indicator" :class="'save-indicator--' + saveStatus"
+            @click="manualSave()" :disabled="saveStatus === 'saving'">
+      <span class="save-indicator-icon" :class="{ 'save-icon-spin': saveStatus === 'saving' }"
+            x-text="{ saved: '✓', unsaved: '●', saving: '↻', error: '✕' }[saveStatus]"></span>
+      <span x-text="{ saved: 'Saved', unsaved: 'Unsaved', saving: 'Saving…', error: 'Failed' }[saveStatus]"></span>
+    </button>
     <button @click="publish()">Publish Changes</button>
   </div>
 </div>
@@ -197,7 +201,8 @@ function formEditor(initialSchema) {
   return {
     schema: initialSchema,
     selectedId: '__page__',
-    saving: false,
+    saveStatus: 'saved',
+    _saveTimer: null,
     activeTab: 'form',
 
     get selectedField() {
@@ -224,6 +229,19 @@ function formEditor(initialSchema) {
           }));
         },
       });
+
+      this.$watch('schema', () => { this.markDirty(); });
+    },
+
+    markDirty() {
+      this.saveStatus = 'unsaved';
+      clearTimeout(this._saveTimer);
+      this._saveTimer = setTimeout(() => this.saveDraft(), 1500);
+    },
+
+    manualSave() {
+      clearTimeout(this._saveTimer);
+      this.saveDraft();
     },
 
     selectItem(id) { this.selectedId = this.selectedId === id ? '__page__' : id; },
@@ -285,9 +303,9 @@ function formEditor(initialSchema) {
     },
 
     async saveDraft() {
-      this.saving = true;
+      this.saveStatus = 'saving';
       try {
-        await fetch('/api/admin/report', {
+        const res = await fetch('/api/admin/report', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -296,8 +314,10 @@ function formEditor(initialSchema) {
             emailTemplate: this.schema.emailTemplate,
           }),
         });
-      } finally {
-        setTimeout(() => { this.saving = false; }, 1500);
+        if (!res.ok) throw new Error('save failed');
+        if (this.saveStatus === 'saving') this.saveStatus = 'saved';
+      } catch {
+        this.saveStatus = 'error';
       }
     },
 
