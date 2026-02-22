@@ -22,11 +22,17 @@
 
   <form id="report-form">
     {{range .Fields}}
+    {{if eq .Type "accordion"}}
+    <details class="field-group accordion-field">
+      <summary>{{.Label}}</summary>
+      {{if .Description}}<p>{{.Description}}</p>{{end}}
+    </details>
+    {{else}}
     <section class="field-group">
       <h2 class="field-label">{{.Label}}{{if .Required}} <span class="required">*</span>{{end}}</h2>
       {{if .Description}}<p class="field-desc">{{.Description}}</p>{{end}}
       {{if eq .Type "textarea"}}
-      <input type="text" id="{{.ID}}" name="fields[{{.ID}}]" placeholder="{{.Placeholder}}"{{if .Required}} required{{end}}>
+      <textarea id="{{.ID}}" name="fields[{{.ID}}]" placeholder="{{.Placeholder}}"{{if .Required}} required{{end}} rows="4"></textarea>
       {{else if eq .Type "select"}}
       <select id="{{.ID}}" name="fields[{{.ID}}]"{{if .Required}} required{{end}}>
         <option value="">-- Select --</option>
@@ -36,6 +42,7 @@
       <input type="text" id="{{.ID}}" name="fields[{{.ID}}]" placeholder="{{.Placeholder}}"{{if .Required}} required{{end}}>
       {{end}}
     </section>
+    {{end}}
     {{end}}
 
     <button type="submit">{{.Page.SubmitButtonLabel}}</button>

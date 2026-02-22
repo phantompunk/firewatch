@@ -52,12 +52,29 @@
                @click="selectItem(field.id)">
             <div class="drag-handle canvas-drag-handle">&#10303;</div>
             <section class="field-group canvas-field-group">
-              <h2 class="field-label">
-                <span x-text="field.label"></span><template x-if="field.required"><span class="required"> *</span></template>
-              </h2>
-              <p class="field-desc" x-show="field.description" x-text="field.description"></p>
-              <input type="text" disabled :placeholder="field.placeholder">
+              <template x-if="field.type !== 'accordion'">
+                <div>
+                  <h2 class="field-label">
+                    <span x-text="field.label"></span><template x-if="field.required"><span class="required"> *</span></template>
+                  </h2>
+                  <p class="field-desc" x-show="field.description" x-text="field.description"></p>
+                  <input type="text" disabled :placeholder="field.placeholder"
+                         x-show="field.type === 'text'">
+                  <textarea disabled :placeholder="field.placeholder" rows="3"
+                            x-show="field.type === 'textarea'"></textarea>
+                </div>
+              </template>
+              <template x-if="field.type === 'accordion'">
+                <details class="field-group canvas-accordion">
+                  <summary x-text="field.label || 'Accordion Title'"></summary>
+                  <p x-text="field.description || 'No content yet.'"></p>
+                </details>
+              </template>
             </section>
+            <button class="canvas-delete-btn"
+                    x-show="selectedId === field.id"
+                    @click.stop="deleteField(field.id)"
+                    title="Delete field">&#10005;</button>
           </div>
         </template>
       </div>
@@ -102,18 +119,27 @@
           <input type="text" :value="selectedField.id" @change="selectedField.id = $event.target.value">
         </div>
         <div class="inspector-field">
+          <label>Type</label>
+          <select x-model="selectedField.type">
+            <option value="text">Short Text</option>
+            <option value="textarea">Long Text</option>
+            <option value="accordion">Accordion</option>
+          </select>
+        </div>
+        <div class="inspector-field">
           <label>Label</label>
           <input type="text" x-model="selectedField.label">
         </div>
         <div class="inspector-field">
-          <label>Description</label>
-          <textarea x-model="selectedField.description" rows="3"></textarea>
+          <label x-text="selectedField.type === 'accordion' ? 'Content' : 'Description'"></label>
+          <textarea x-model="selectedField.description"
+                    :rows="selectedField.type === 'accordion' ? 6 : 3"></textarea>
         </div>
-        <div class="inspector-field">
+        <div class="inspector-field" x-show="selectedField.type !== 'accordion'">
           <label>Placeholder</label>
           <input type="text" x-model="selectedField.placeholder">
         </div>
-        <div class="inspector-field">
+        <div class="inspector-field" x-show="selectedField.type !== 'accordion'">
           <label class="toggle-label">
             <span>Required</span>
             <span class="toggle-switch">
@@ -129,6 +155,9 @@
           <button class="order-btn" @click="moveDown()"
                   :disabled="selectedIndex === schema.fields.length - 1"
                   title="Move down">&#8595; Move down</button>
+        </div>
+        <div class="inspector-delete-row">
+          <button class="delete-btn" @click="deleteField(selectedField.id)">Delete Field</button>
         </div>
       </div>
     </template>
@@ -246,6 +275,13 @@ function formEditor(initialSchema) {
       const fields = [...this.schema.fields];
       [fields[i], fields[i + 1]] = [fields[i + 1], fields[i]];
       this.schema.fields = fields.map((f, idx) => ({ ...f, order: idx + 1 }));
+    },
+
+    deleteField(id) {
+      this.schema.fields = this.schema.fields
+        .filter(f => f.id !== id)
+        .map((f, idx) => ({ ...f, order: idx + 1 }));
+      this.selectedId = '__page__';
     },
 
     async saveDraft() {
