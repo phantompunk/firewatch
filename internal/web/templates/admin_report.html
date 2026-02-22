@@ -34,6 +34,20 @@
 
 <!-- Form Tab -->
 <div x-show="activeTab === 'form'" class="editor-layout">
+  <!-- Field Palette -->
+  <div class="field-palette" id="field-palette">
+    <div class="field-palette-title">Fields</div>
+    <div class="palette-item" data-type="text" @click="addField('text')">
+      <span class="palette-item-icon">—</span>Short Text
+    </div>
+    <div class="palette-item" data-type="textarea" @click="addField('textarea')">
+      <span class="palette-item-icon">≡</span>Long Text
+    </div>
+    <div class="palette-item" data-type="accordion" @click="addField('accordion')">
+      <span class="palette-item-icon">▾</span>Accordion
+    </div>
+  </div>
+
   <!-- Center Canvas -->
   <div class="canvas-panel">
     <div class="canvas-inner">
@@ -83,7 +97,6 @@
         </template>
       </div>
 
-      <button class="canvas-add-field-btn" @click.stop="addField()">+ Add Field</button>
       <button disabled x-text="schema.page.submitButtonLabel"
               class="canvas-submit-btn"></button>
 
@@ -121,14 +134,6 @@
         <div class="inspector-field">
           <label>ID</label>
           <input type="text" :value="selectedField.id" @change="selectedField.id = $event.target.value">
-        </div>
-        <div class="inspector-field">
-          <label>Type</label>
-          <select x-model="selectedField.type">
-            <option value="text">Short Text</option>
-            <option value="textarea">Long Text</option>
-            <option value="accordion">Accordion</option>
-          </select>
         </div>
         <div class="inspector-field">
           <label>Label</label>
@@ -170,20 +175,23 @@
 
 <!-- Email Template Tab -->
 <div x-show="activeTab === 'email'" class="editor-layout editor-email">
+  <!-- Token Palette -->
+  <div class="field-palette">
+    <div class="field-palette-title">Insert Field</div>
+    <template x-for="field in schema.fields" :key="field.id">
+      <div class="palette-item palette-item--token" @click="insertToken(field.id)"
+           :title="'{' + '{' + field.id + '}' + '}'">
+        <span x-text="field.label"></span>
+      </div>
+    </template>
+    <div x-show="schema.fields.length === 0" class="field-palette-empty">No fields defined yet.</div>
+  </div>
+
   <div class="email-editor-panel">
     <div class="email-panel-header">
       <h2>Template</h2>
     </div>
     <textarea id="email-template" class="email-textarea" x-model="schema.emailTemplate" spellcheck="false"></textarea>
-    <div class="token-bar">
-      <span class="token-bar-label">Insert</span>
-      <template x-for="field in schema.fields" :key="field.id">
-        <button class="token-chip" @click="insertToken(field.id)"
-                x-text="field.label"
-                :title="'{' + '{' + field.id + '}' + '}'"></button>
-      </template>
-      <span x-show="schema.fields.length === 0" class="token-bar-empty">No fields defined yet.</span>
-    </div>
   </div>
   <div class="email-preview-panel">
     <div class="email-panel-header">
@@ -217,9 +225,27 @@ function formEditor(initialSchema) {
     get isPageSelected() { return this.selectedId === '__page__'; },
 
     init() {
+      Sortable.create(document.getElementById('field-palette'), {
+        group: { name: 'canvas', pull: 'clone', put: false },
+        sort: false,
+        animation: 150,
+      });
+
       Sortable.create(document.getElementById('canvas-fields'), {
+        group: { name: 'canvas', pull: true, put: true },
         handle: '.drag-handle',
         animation: 150,
+        ghostClass: 'canvas-drop-ghost',
+        onAdd: (evt) => {
+          const type = evt.item.dataset.type;
+          const idx = evt.newIndex;
+          evt.item.remove();
+          const f = this._makeField(type);
+          const fields = [...this.schema.fields];
+          fields.splice(idx, 0, f);
+          this.schema.fields = fields.map((field, i) => ({ ...field, order: i + 1 }));
+          this.$nextTick(() => this.selectItem(f.id));
+        },
         onEnd: () => {
           const ids = [...document.querySelectorAll('#canvas-fields [data-field-id]')]
             .map(el => el.dataset.fieldId);
@@ -231,6 +257,16 @@ function formEditor(initialSchema) {
       });
 
       this.$watch('schema', () => { this.markDirty(); });
+    },
+
+    _makeField(type) {
+      const defaults = {
+        text:      { label: 'New Text Field', placeholder: 'Enter text…' },
+        textarea:  { label: 'New Long Text',  placeholder: 'Enter text…' },
+        accordion: { label: 'New Section',    placeholder: ''            },
+      };
+      const d = defaults[type] || defaults.text;
+      return { id: 'field_' + Date.now(), label: d.label, description: '', placeholder: d.placeholder, required: false, type, order: 0 };
     },
 
     markDirty() {
@@ -273,18 +309,11 @@ function formEditor(initialSchema) {
       }, this.schema.emailTemplate);
     },
 
-    addField() {
-      const id = 'field_' + Date.now();
-      this.schema.fields.push({
-        id: "newfield",
-        label: 'New Field',
-        description: 'Field description',
-        placeholder: 'Field placeholder',
-        required: false,
-        type: 'text',
-        order: this.schema.fields.length + 1,
-      });
-      this.$nextTick(() => this.selectItem(id));
+    addField(type) {
+      const f = this._makeField(type);
+      f.order = this.schema.fields.length + 1;
+      this.schema.fields.push(f);
+      this.$nextTick(() => this.selectItem(f.id));
     },
 
     moveDown() {
