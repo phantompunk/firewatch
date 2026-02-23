@@ -23,9 +23,16 @@ func Verify(hash, password string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }
 
-// newID generates a random hex ID.
-func newID() string {
+// NewID generates a random hex ID.
+func NewID() string {
 	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+// GenerateToken returns a 32-byte cryptographically random hex string.
+func GenerateToken() string {
+	b := make([]byte, 32)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
 }
@@ -60,7 +67,7 @@ func SeedFirstAdmin(ctx context.Context, users UserCreator) {
 		return
 	}
 
-	if err := users.Create(ctx, newID(), email, hash, "super_admin"); err != nil {
+	if err := users.Create(ctx, NewID(), email, hash, "super_admin"); err != nil {
 		slog.Error("seed: failed to create admin user", "err", err)
 		return
 	}

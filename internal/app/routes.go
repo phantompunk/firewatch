@@ -30,9 +30,11 @@ func (app App) routes() http.Handler {
 	r.Post("/api/report", reportHandler.Submit)
 
 	// Admin auth (public endpoints)
-	authHandler := handler.NewAuthHandler(app.userStore, app.sessionStore, web.Templates, app.config.SecureCookies)
+	authHandler := handler.NewAuthHandler(app.userStore, app.sessionStore, app.userStore, web.Templates, app.config.SecureCookies)
 	r.Get("/admin/login", authHandler.LoginPage)
 	r.Post("/api/admin/login", authHandler.Login)
+	r.Get("/accept-invite", authHandler.AcceptInvitePage)
+	r.Post("/api/accept-invite", authHandler.AcceptInvite)
 
 	// Protected admin routes
 	sessionMW := middleware.Session(app.sessionStore, app.userStore)
@@ -58,9 +60,9 @@ func (app App) routes() http.Handler {
 
 		// Super admin only
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.RequireRole("super_admin"))
+			r.Use(middleware.RequireSuperAdmin())
 
-			usersHandler := handler.NewUsersHandler(app.userStore, app.sessionStore, nil, web.Templates)
+			usersHandler := handler.NewUsersHandler(app.userStore, app.sessionStore, app.mailer, app.config.AdminInviteBaseURL, web.Templates)
 			r.Get("/admin/users", usersHandler.Page)
 			r.Get("/api/admin/users", usersHandler.List)
 			r.Post("/api/admin/users", usersHandler.Invite)

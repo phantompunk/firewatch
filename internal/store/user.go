@@ -2,20 +2,28 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
+	"errors"
+	"fmt"
 	"time"
 
 	dbpkg "github.com/firewatch/internal/db"
 	"github.com/firewatch/internal/model"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// ErrNotFound is returned when a requested record does not exist.
+var ErrNotFound = errors.New("not found")
+
 type UserStore struct {
-	q *dbpkg.Queries
+	q    *dbpkg.Queries
+	pool *pgxpool.Pool
 }
 
 func NewUserStore(pool *pgxpool.Pool) *UserStore {
-	return &UserStore{q: dbpkg.New(pool)}
+	return &UserStore{q: dbpkg.New(pool), pool: pool}
 }
 
 func (s *UserStore) CountAll(ctx context.Context) (int, error) {
@@ -114,6 +122,58 @@ func (s *UserStore) Delete(ctx context.Context, id string) error {
 		return errLastSuperAdmin
 	}
 	return s.q.DeleteAdminUser(ctx, id)
+}
+
+// CreateInvite stores a hashed invitation token for the given email and role.
+func (s *UserStore) CreateInvite(ctx context.Context, id, email, role, rawToken string) error {
+	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(rawToken)))
+	return s.q.CreateInvite(ctx, dbpkg.CreateInviteParams{
+		ID:        id,
+		Email:     email,
+		Role:      role,
+		TokenHash: hash,
+		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(48 * time.Hour), Valid: true},
+	})
+}
+
+// GetInviteByToken looks up an active (unused, unexpired) invitation by its raw token.
+func (s *UserStore) GetInviteByToken(ctx context.Context, rawToken string) (*model.Invite, error) {
+	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(rawToken)))
+	row, err := s.q.GetInviteByTokenHash(ctx, hash)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get invite by token: %w", err)
+	}
+	return &model.Invite{
+		ID:    row.ID,
+		Email: row.Email,
+		Role:  model.Role(row.Role),
+	}, nil
+}
+
+// AcceptInvite creates the new admin user and marks the invite as used in one transaction.
+func (s *UserStore) AcceptInvite(ctx context.Context, inviteID, userID, email, passwordHash, role string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := s.q.WithTx(tx)
+	if err := q.CreateAdminUser(ctx, dbpkg.CreateAdminUserParams{
+		ID:           userID,
+		Email:        email,
+		PasswordHash: passwordHash,
+		Role:         role,
+	}); err != nil {
+		return fmt.Errorf("create admin user: %w", err)
+	}
+	if err := q.MarkInviteUsed(ctx, inviteID); err != nil {
+		return fmt.Errorf("mark invite used: %w", err)
+	}
+	return tx.Commit(ctx)
 }
 
 var errLastSuperAdmin = errStr("cannot delete the last super_admin account")

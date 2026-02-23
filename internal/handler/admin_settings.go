@@ -7,8 +7,14 @@ import (
 	"net/http"
 
 	"github.com/firewatch/internal/mailer"
+	appmw "github.com/firewatch/internal/middleware"
 	"github.com/firewatch/internal/model"
 )
+
+type adminSettingsPageData struct {
+	*model.AppSettings
+	IsSuperAdmin bool
+}
 
 type settingsStore interface {
 	Load(ctx context.Context) (*model.AppSettings, error)
@@ -35,7 +41,11 @@ func (h *SettingsHandler) Page(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	if err := h.templates.ExecuteTemplate(w, "admin_settings.html", s); err != nil {
+	data := adminSettingsPageData{
+		AppSettings:  s,
+		IsSuperAdmin: appmw.IsSuperAdmin(r.Context()),
+	}
+	if err := h.templates.ExecuteTemplate(w, "admin_settings.html", data); err != nil {
 		slog.Error("settings: template error", "err", err)
 	}
 }

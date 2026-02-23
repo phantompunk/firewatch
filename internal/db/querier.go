@@ -15,6 +15,7 @@ type Querier interface {
 	CountAdminUsers(ctx context.Context) (int64, error)
 	CountReportSchemas(ctx context.Context) (int64, error)
 	CreateAdminUser(ctx context.Context, arg CreateAdminUserParams) error
+	CreateInvite(ctx context.Context, arg CreateInviteParams) error
 	CreateSession(ctx context.Context, arg CreateSessionParams) error
 	DeleteAdminUser(ctx context.Context, id string) error
 	DeleteExpiredSessions(ctx context.Context) error
@@ -23,16 +24,18 @@ type Querier interface {
 	GetAdminUserByEmail(ctx context.Context, email string) (AdminUser, error)
 	GetAdminUserByID(ctx context.Context, id string) (GetAdminUserByIDRow, error)
 	GetAdminUserRoleByID(ctx context.Context, id string) (string, error)
+	GetInviteByTokenHash(ctx context.Context, tokenHash string) (InvitationToken, error)
 	GetReportSchema(ctx context.Context, isLive bool) ([]byte, error)
 	GetSessionUserID(ctx context.Context, id string) (string, error)
 	GetSettings(ctx context.Context) ([]byte, error)
 	InsertReportSchemaRow(ctx context.Context, arg InsertReportSchemaRowParams) error
-	UpsertDraftSchema(ctx context.Context, arg UpsertDraftSchemaParams) error
 	ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, error)
+	MarkInviteUsed(ctx context.Context, id string) error
 	PromoteLatestDraft(ctx context.Context, updatedBy pgtype.Text) error
 	UpdateAdminUserLastLogin(ctx context.Context, id string) error
 	UpdateAdminUserPassword(ctx context.Context, arg UpdateAdminUserPasswordParams) error
 	UpdateAdminUserRoleAndStatus(ctx context.Context, arg UpdateAdminUserRoleAndStatusParams) error
+	UpsertDraftSchema(ctx context.Context, arg UpsertDraftSchemaParams) error
 	UpsertSettings(ctx context.Context, data []byte) error
 }
 

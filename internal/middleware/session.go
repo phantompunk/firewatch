@@ -51,7 +51,7 @@ func Session(sessions SessionReader, users userByIDer) func(http.Handler) http.H
 			}
 
 			ctx := context.WithValue(r.Context(), contextKeyUserID, userID)
-			ctx = context.WithValue(ctx, contextKeyRole, string(user.Role))
+			ctx = context.WithValue(ctx, contextKeyRole, user.Role)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -64,7 +64,12 @@ func UserIDFromContext(ctx context.Context) string {
 }
 
 // RoleFromContext returns the authenticated user's role from the context.
-func RoleFromContext(ctx context.Context) string {
-	v, _ := ctx.Value(contextKeyRole).(string)
+func RoleFromContext(ctx context.Context) model.Role {
+	v, _ := ctx.Value(contextKeyRole).(model.Role)
 	return v
+}
+
+// IsSuperAdmin reports whether the authenticated user has the super_admin role.
+func IsSuperAdmin(ctx context.Context) bool {
+	return RoleFromContext(ctx) == model.RoleSuperAdmin
 }

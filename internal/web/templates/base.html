@@ -18,7 +18,9 @@
   <div class="sidebar-links">
     <a href="/admin/report" class="sidebar-link">Form Editor</a>
     <a href="/admin/settings" class="sidebar-link">Settings</a>
+    {{if .IsSuperAdmin }}
     <a href="/admin/users" class="sidebar-link">Users</a>
+    {{end}}
     <a href="/admin/stats" class="sidebar-link">Stats</a>
   </div>
   <div class="sidebar-bottom">

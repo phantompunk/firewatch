@@ -15,6 +15,33 @@
     <button id="btn-invite">Invite Admin</button>
   </div>
 
+  <!-- Invite modal -->
+  <div id="invite-modal" style="display:none">
+    <div class="modal-backdrop" id="modal-backdrop"></div>
+    <div class="modal">
+      <h2>Invite Admin</h2>
+      <p id="invite-msg" class="error" style="display:none"></p>
+      <p id="invite-success" style="display:none;color:green">Invitation sent.</p>
+      <form id="invite-form">
+        <div class="field-group">
+          <label for="invite-email">Email</label>
+          <input type="email" id="invite-email" name="email" required>
+        </div>
+        <div class="field-group">
+          <label for="invite-role">Role</label>
+          <select id="invite-role" name="role">
+            <option value="admin">Admin</option>
+            <option value="super_admin">Super Admin</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="submit">Send Invitation</button>
+          <button type="button" id="btn-cancel">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <table id="users-table">
     <thead>
       <tr>
@@ -26,7 +53,7 @@
       </tr>
     </thead>
     <tbody>
-      {{range .}}
+      {{range .Users}}
       <tr id="user-{{.ID}}">
         <td>{{.Email}}</td>
         <td>{{.Role}}</td>
@@ -52,8 +79,44 @@ async function deleteUser(id, email) {
     alert('Failed to delete user.');
   }
 }
+
+const modal = document.getElementById('invite-modal');
+const msgEl = document.getElementById('invite-msg');
+const successEl = document.getElementById('invite-success');
+
 document.getElementById('btn-invite').addEventListener('click', () => {
-  alert('Invite functionality coming soon.');
+  msgEl.style.display = 'none';
+  successEl.style.display = 'none';
+  document.getElementById('invite-form').reset();
+  modal.style.display = 'block';
+});
+
+document.getElementById('btn-cancel').addEventListener('click', () => {
+  modal.style.display = 'none';
+});
+
+document.getElementById('modal-backdrop').addEventListener('click', () => {
+  modal.style.display = 'none';
+});
+
+document.getElementById('invite-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  msgEl.style.display = 'none';
+  successEl.style.display = 'none';
+  const body = new URLSearchParams(new FormData(e.target));
+  const r = await fetch('/api/admin/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+  if (r.ok) {
+    successEl.style.display = 'block';
+    document.getElementById('invite-form').reset();
+  } else {
+    const text = await r.text();
+    msgEl.textContent = text || 'Failed to send invitation.';
+    msgEl.style.display = 'block';
+  }
 });
 </script>
 </body>

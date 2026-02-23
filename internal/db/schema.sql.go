@@ -45,31 +45,6 @@ func (q *Queries) GetReportSchema(ctx context.Context, isLive bool) ([]byte, err
 	return schema, err
 }
 
-const upsertDraftSchema = `-- name: UpsertDraftSchema :exec
-WITH removed AS (
-    DELETE FROM report_schema WHERE is_live = FALSE
-)
-INSERT INTO report_schema (version, is_live, schema, updated_at, updated_by)
-VALUES ($1, FALSE, $2, $3, $4)
-`
-
-type UpsertDraftSchemaParams struct {
-	Version   int32              `json:"version"`
-	Schema    []byte             `json:"schema"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-	UpdatedBy pgtype.Text        `json:"updated_by"`
-}
-
-func (q *Queries) UpsertDraftSchema(ctx context.Context, arg UpsertDraftSchemaParams) error {
-	_, err := q.db.Exec(ctx, upsertDraftSchema,
-		arg.Version,
-		arg.Schema,
-		arg.UpdatedAt,
-		arg.UpdatedBy,
-	)
-	return err
-}
-
 const insertReportSchemaRow = `-- name: InsertReportSchemaRow :exec
 INSERT INTO report_schema (version, is_live, schema, updated_at)
 VALUES ($1, $2, $3, NOW())
@@ -99,5 +74,30 @@ WHERE id = (
 
 func (q *Queries) PromoteLatestDraft(ctx context.Context, updatedBy pgtype.Text) error {
 	_, err := q.db.Exec(ctx, promoteLatestDraft, updatedBy)
+	return err
+}
+
+const upsertDraftSchema = `-- name: UpsertDraftSchema :exec
+WITH removed AS (
+    DELETE FROM report_schema WHERE is_live = FALSE
+)
+INSERT INTO report_schema (version, is_live, schema, updated_at, updated_by)
+VALUES ($1, FALSE, $2, $3, $4)
+`
+
+type UpsertDraftSchemaParams struct {
+	Version   int32              `json:"version"`
+	Schema    []byte             `json:"schema"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy pgtype.Text        `json:"updated_by"`
+}
+
+func (q *Queries) UpsertDraftSchema(ctx context.Context, arg UpsertDraftSchemaParams) error {
+	_, err := q.db.Exec(ctx, upsertDraftSchema,
+		arg.Version,
+		arg.Schema,
+		arg.UpdatedAt,
+		arg.UpdatedBy,
+	)
 	return err
 }

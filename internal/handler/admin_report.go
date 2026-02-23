@@ -13,7 +13,8 @@ import (
 
 type adminReportPageData struct {
 	model.ReportSchema
-	SchemaJSON template.JS
+	SchemaJSON   template.JS
+	IsSuperAdmin bool
 }
 
 type schemaDraftStore interface {
@@ -46,6 +47,7 @@ func (h *AdminReportHandler) Page(w http.ResponseWriter, r *http.Request) {
 	data := adminReportPageData{
 		ReportSchema: *schema,
 		SchemaJSON:   template.JS(jsonBytes),
+		IsSuperAdmin: appmw.IsSuperAdmin(r.Context()),
 	}
 	if err := h.templates.ExecuteTemplate(w, "admin_report.html", data); err != nil {
 		slog.Error("admin_report: template error", "err", err)

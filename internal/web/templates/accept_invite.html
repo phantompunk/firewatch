@@ -1,0 +1,34 @@
+{{define "accept_invite.html"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accept Invitation — Firewatch</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main class="login-container">
+  <h1>Accept Invitation</h1>
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+  {{if not .Error}}
+  <form method="POST" action="/api/accept-invite">
+    <input type="hidden" name="token" value="{{.Token}}">
+    <div class="field-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" value="{{.Email}}" readonly>
+    </div>
+    <div class="field-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required autocomplete="new-password">
+    </div>
+    <div class="field-group">
+      <label for="confirm_password">Confirm Password</label>
+      <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password">
+    </div>
+    <button type="submit">Set Password &amp; Log In</button>
+  </form>
+  {{end}}
+</main>
+</body>
+</html>
+{{end}}

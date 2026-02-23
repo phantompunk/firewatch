@@ -32,6 +32,8 @@ type Config struct {
 	ReportRetentionPolicy string
 	DestinationEmail      string
 
+	AdminInviteBaseURL string
+
 	SecureCookies bool
 	Cors          struct {
 		TrustedOrigins []string
@@ -59,6 +61,7 @@ func Load() (*Config, error) {
 	cfg.SMTPFromName = getEnv("SMTP_FROM_NAME", "")
 	cfg.DestinationEmail = getEnv("DESTINATION_EMAIL", "")
 	cfg.ReportRetentionPolicy = getEnv("REPORT_RETENTION_POLICY", "30d")
+	cfg.AdminInviteBaseURL = getEnv("ADMIN_INVITE_BASE_URL", "")
 	cfg.SecureCookies = getEnv("SECURE_COOKIES", "false") == "true"
 
 	flag.Parse()
