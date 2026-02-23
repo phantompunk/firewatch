@@ -21,6 +21,7 @@ type Config struct {
 	// Security
 	SessionSecret         string
 	SettingsEncryptionKey string
+	EmailHMACKey          string
 
 	// SMTP
 	SMTPHost              string
@@ -53,6 +54,7 @@ func Load() (*Config, error) {
 
 	cfg.SessionSecret = mustEnv("SESSION_SECRET")
 	cfg.SettingsEncryptionKey = mustEnv("SETTINGS_ENCRYPTION_KEY")
+	cfg.EmailHMACKey = mustEnv("EMAIL_HMAC_KEY")
 	cfg.SMTPHost = getEnv("SMTP_HOST", "")
 	cfg.SMTPPort = getEnv("SMTP_PORT", "587")
 	cfg.SMTPUser = getEnv("SMTP_USER", "")
@@ -90,6 +92,10 @@ func (c *Config) Validate() error {
 
 	if len(c.SettingsEncryptionKey) < 32 {
 		return fmt.Errorf("SETTINGS_ENCRYPTION_KEY must be at least 32 characters")
+	}
+
+	if len(c.EmailHMACKey) < 32 {
+		return fmt.Errorf("EMAIL_HMAC_KEY must be at least 32 characters")
 	}
 
 	if len(c.SessionSecret) < 16 {

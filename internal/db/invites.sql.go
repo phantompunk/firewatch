@@ -12,22 +12,22 @@ import (
 )
 
 const createInvite = `-- name: CreateInvite :exec
-INSERT INTO invitation_tokens (id, email, role, token_hash, expires_at)
+INSERT INTO invitation_tokens (id, email_encrypted, role, token_hash, expires_at)
 VALUES ($1, $2, $3, $4, $5)
 `
 
 type CreateInviteParams struct {
-	ID        string             `json:"id"`
-	Email     string             `json:"email"`
-	Role      string             `json:"role"`
-	TokenHash string             `json:"token_hash"`
-	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	ID             string             `json:"id"`
+	EmailEncrypted []byte             `json:"email_encrypted"`
+	Role           string             `json:"role"`
+	TokenHash      string             `json:"token_hash"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
 }
 
 func (q *Queries) CreateInvite(ctx context.Context, arg CreateInviteParams) error {
 	_, err := q.db.Exec(ctx, createInvite,
 		arg.ID,
-		arg.Email,
+		arg.EmailEncrypted,
 		arg.Role,
 		arg.TokenHash,
 		arg.ExpiresAt,
@@ -36,19 +36,28 @@ func (q *Queries) CreateInvite(ctx context.Context, arg CreateInviteParams) erro
 }
 
 const getInviteByTokenHash = `-- name: GetInviteByTokenHash :one
-SELECT id, email, role, token_hash, expires_at, used
+SELECT id, email_encrypted, role, token_hash, expires_at, used
 FROM invitation_tokens
 WHERE token_hash = $1
   AND used = FALSE
   AND expires_at > NOW()
 `
 
-func (q *Queries) GetInviteByTokenHash(ctx context.Context, tokenHash string) (InvitationToken, error) {
+type GetInviteByTokenHashRow struct {
+	ID             string             `json:"id"`
+	EmailEncrypted []byte             `json:"email_encrypted"`
+	Role           string             `json:"role"`
+	TokenHash      string             `json:"token_hash"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	Used           bool               `json:"used"`
+}
+
+func (q *Queries) GetInviteByTokenHash(ctx context.Context, tokenHash string) (GetInviteByTokenHashRow, error) {
 	row := q.db.QueryRow(ctx, getInviteByTokenHash, tokenHash)
-	var i InvitationToken
+	var i GetInviteByTokenHashRow
 	err := row.Scan(
 		&i.ID,
-		&i.Email,
+		&i.EmailEncrypted,
 		&i.Role,
 		&i.TokenHash,
 		&i.ExpiresAt,

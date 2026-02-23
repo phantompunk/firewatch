@@ -35,21 +35,25 @@ func (q *Queries) CountAdminUsers(ctx context.Context) (int64, error) {
 }
 
 const createAdminUser = `-- name: CreateAdminUser :exec
-INSERT INTO admin_users (id, email, password_hash, role)
-VALUES ($1, $2, $3, $4)
+INSERT INTO admin_users (id, username, email_hmac, email_encrypted, password_hash, role)
+VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreateAdminUserParams struct {
-	ID           string `json:"id"`
-	Email        string `json:"email"`
-	PasswordHash string `json:"password_hash"`
-	Role         string `json:"role"`
+	ID             string `json:"id"`
+	Username       string `json:"username"`
+	EmailHmac      string `json:"email_hmac"`
+	EmailEncrypted []byte `json:"email_encrypted"`
+	PasswordHash   string `json:"password_hash"`
+	Role           string `json:"role"`
 }
 
 func (q *Queries) CreateAdminUser(ctx context.Context, arg CreateAdminUserParams) error {
 	_, err := q.db.Exec(ctx, createAdminUser,
 		arg.ID,
-		arg.Email,
+		arg.Username,
+		arg.EmailHmac,
+		arg.EmailEncrypted,
 		arg.PasswordHash,
 		arg.Role,
 	)
@@ -65,18 +69,32 @@ func (q *Queries) DeleteAdminUser(ctx context.Context, id string) error {
 	return err
 }
 
-const getAdminUserByEmail = `-- name: GetAdminUserByEmail :one
-SELECT id, email, password_hash, role, status, created_at, last_login_at
+const getAdminUserByEmailHMAC = `-- name: GetAdminUserByEmailHMAC :one
+SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at
 FROM admin_users
-WHERE email = $1
+WHERE email_hmac = $1
 `
 
-func (q *Queries) GetAdminUserByEmail(ctx context.Context, email string) (AdminUser, error) {
-	row := q.db.QueryRow(ctx, getAdminUserByEmail, email)
-	var i AdminUser
+type GetAdminUserByEmailHMACRow struct {
+	ID             string             `json:"id"`
+	Username       string             `json:"username"`
+	EmailEncrypted []byte             `json:"email_encrypted"`
+	EmailHmac      string             `json:"email_hmac"`
+	PasswordHash   string             `json:"password_hash"`
+	Role           string             `json:"role"`
+	Status         string             `json:"status"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	LastLoginAt    pgtype.Timestamptz `json:"last_login_at"`
+}
+
+func (q *Queries) GetAdminUserByEmailHMAC(ctx context.Context, emailHmac string) (GetAdminUserByEmailHMACRow, error) {
+	row := q.db.QueryRow(ctx, getAdminUserByEmailHMAC, emailHmac)
+	var i GetAdminUserByEmailHMACRow
 	err := row.Scan(
 		&i.ID,
-		&i.Email,
+		&i.Username,
+		&i.EmailEncrypted,
+		&i.EmailHmac,
 		&i.PasswordHash,
 		&i.Role,
 		&i.Status,
@@ -87,14 +105,14 @@ func (q *Queries) GetAdminUserByEmail(ctx context.Context, email string) (AdminU
 }
 
 const getAdminUserByID = `-- name: GetAdminUserByID :one
-SELECT id, email, role, status, created_at, last_login_at
+SELECT id, username, role, status, created_at, last_login_at
 FROM admin_users
 WHERE id = $1
 `
 
 type GetAdminUserByIDRow struct {
 	ID          string             `json:"id"`
-	Email       string             `json:"email"`
+	Username    string             `json:"username"`
 	Role        string             `json:"role"`
 	Status      string             `json:"status"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
@@ -106,13 +124,59 @@ func (q *Queries) GetAdminUserByID(ctx context.Context, id string) (GetAdminUser
 	var i GetAdminUserByIDRow
 	err := row.Scan(
 		&i.ID,
-		&i.Email,
+		&i.Username,
 		&i.Role,
 		&i.Status,
 		&i.CreatedAt,
 		&i.LastLoginAt,
 	)
 	return i, err
+}
+
+const getAdminUserByUsername = `-- name: GetAdminUserByUsername :one
+SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at
+FROM admin_users
+WHERE username = $1
+`
+
+type GetAdminUserByUsernameRow struct {
+	ID             string             `json:"id"`
+	Username       string             `json:"username"`
+	EmailEncrypted []byte             `json:"email_encrypted"`
+	EmailHmac      string             `json:"email_hmac"`
+	PasswordHash   string             `json:"password_hash"`
+	Role           string             `json:"role"`
+	Status         string             `json:"status"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	LastLoginAt    pgtype.Timestamptz `json:"last_login_at"`
+}
+
+func (q *Queries) GetAdminUserByUsername(ctx context.Context, username string) (GetAdminUserByUsernameRow, error) {
+	row := q.db.QueryRow(ctx, getAdminUserByUsername, username)
+	var i GetAdminUserByUsernameRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.EmailEncrypted,
+		&i.EmailHmac,
+		&i.PasswordHash,
+		&i.Role,
+		&i.Status,
+		&i.CreatedAt,
+		&i.LastLoginAt,
+	)
+	return i, err
+}
+
+const getAdminUserEmailEncryptedByID = `-- name: GetAdminUserEmailEncryptedByID :one
+SELECT email_encrypted FROM admin_users WHERE id = $1
+`
+
+func (q *Queries) GetAdminUserEmailEncryptedByID(ctx context.Context, id string) ([]byte, error) {
+	row := q.db.QueryRow(ctx, getAdminUserEmailEncryptedByID, id)
+	var email_encrypted []byte
+	err := row.Scan(&email_encrypted)
+	return email_encrypted, err
 }
 
 const getAdminUserRoleByID = `-- name: GetAdminUserRoleByID :one
@@ -127,14 +191,14 @@ func (q *Queries) GetAdminUserRoleByID(ctx context.Context, id string) (string, 
 }
 
 const listAdminUsers = `-- name: ListAdminUsers :many
-SELECT id, email, role, status, created_at, last_login_at
+SELECT id, username, role, status, created_at, last_login_at
 FROM admin_users
 ORDER BY created_at
 `
 
 type ListAdminUsersRow struct {
 	ID          string             `json:"id"`
-	Email       string             `json:"email"`
+	Username    string             `json:"username"`
 	Role        string             `json:"role"`
 	Status      string             `json:"status"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
@@ -152,7 +216,7 @@ func (q *Queries) ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, erro
 		var i ListAdminUsersRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.Email,
+			&i.Username,
 			&i.Role,
 			&i.Status,
 			&i.CreatedAt,

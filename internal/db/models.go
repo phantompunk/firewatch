@@ -9,13 +9,15 @@ import (
 )
 
 type AdminUser struct {
-	ID           string             `json:"id"`
-	Email        string             `json:"email"`
-	PasswordHash string             `json:"password_hash"`
-	Role         string             `json:"role"`
-	Status       string             `json:"status"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	LastLoginAt  pgtype.Timestamptz `json:"last_login_at"`
+	ID             string             `json:"id"`
+	PasswordHash   string             `json:"password_hash"`
+	Role           string             `json:"role"`
+	Status         string             `json:"status"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	LastLoginAt    pgtype.Timestamptz `json:"last_login_at"`
+	Username       string             `json:"username"`
+	EmailHmac      string             `json:"email_hmac"`
+	EmailEncrypted []byte             `json:"email_encrypted"`
 }
 
 type AuditLog struct {
@@ -27,12 +29,12 @@ type AuditLog struct {
 }
 
 type InvitationToken struct {
-	ID        string             `json:"id"`
-	Email     string             `json:"email"`
-	Role      string             `json:"role"`
-	TokenHash string             `json:"token_hash"`
-	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
-	Used      bool               `json:"used"`
+	ID             string             `json:"id"`
+	Role           string             `json:"role"`
+	TokenHash      string             `json:"token_hash"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	Used           bool               `json:"used"`
+	EmailEncrypted []byte             `json:"email_encrypted"`
 }
 
 type PasswordResetToken struct {

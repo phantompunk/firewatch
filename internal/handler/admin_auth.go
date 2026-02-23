@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/firewatch/internal/auth"
@@ -14,8 +15,9 @@ import (
 	"github.com/firewatch/internal/store"
 )
 
-type userGetterByEmail interface {
-	GetByEmail(ctx context.Context, email string) (*model.AdminUser, string, error)
+type userGetterByIdentifier interface {
+	GetByUsername(ctx context.Context, username string) (*model.AdminUser, string, error)
+	GetByEmailHMAC(ctx context.Context, email string) (*model.AdminUser, string, error)
 	UpdateLastLogin(ctx context.Context, id string) error
 }
 
@@ -26,7 +28,7 @@ type sessionCreatorDeleter interface {
 
 type inviteStore interface {
 	GetInviteByToken(ctx context.Context, rawToken string) (*model.Invite, error)
-	AcceptInvite(ctx context.Context, inviteID, userID, email, passwordHash, role string) error
+	AcceptInvite(ctx context.Context, inviteID, userID, username, email, passwordHash, role string) error
 }
 
 type acceptInvitePageData struct {
@@ -37,14 +39,14 @@ type acceptInvitePageData struct {
 
 // AuthHandler handles admin authentication.
 type AuthHandler struct {
-	users         userGetterByEmail
+	users         userGetterByIdentifier
 	sessions      sessionCreatorDeleter
 	invites       inviteStore
 	templates     *template.Template
 	secureCookies bool
 }
 
-func NewAuthHandler(users userGetterByEmail, sessions sessionCreatorDeleter, invites inviteStore, tmpl *template.Template, secureCookies bool) *AuthHandler {
+func NewAuthHandler(users userGetterByIdentifier, sessions sessionCreatorDeleter, invites inviteStore, tmpl *template.Template, secureCookies bool) *AuthHandler {
 	return &AuthHandler{users: users, sessions: sessions, invites: invites, templates: tmpl, secureCookies: secureCookies}
 }
 
@@ -56,19 +58,34 @@ func (h *AuthHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
 }
 
 // Login authenticates an admin and issues a session cookie.
+// The identifier field accepts either a username or an email address.
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
-	email := r.FormValue("email")
+	identifier := r.FormValue("identifier")
 	password := r.FormValue("password")
 
-	user, hash, err := h.users.GetByEmail(r.Context(), email)
-	if err != nil || !auth.Verify(hash, password) {
-		if err := h.templates.ExecuteTemplate(w, "admin_login.html", map[string]any{"Error": "Invalid email or password."}); err != nil {
+	renderLoginError := func() {
+		if err := h.templates.ExecuteTemplate(w, "admin_login.html", map[string]any{"Error": "Invalid credentials."}); err != nil {
 			slog.Error("auth: template error", "err", err)
 		}
+	}
+
+	// Try username first; fall back to email HMAC lookup if the identifier
+	// looks like an email address.
+	var user *model.AdminUser
+	var hash string
+	var err error
+
+	user, hash, err = h.users.GetByUsername(r.Context(), identifier)
+	if errors.Is(err, store.ErrNotFound) && strings.Contains(identifier, "@") {
+		user, hash, err = h.users.GetByEmailHMAC(r.Context(), identifier)
+	}
+
+	if err != nil || !auth.Verify(hash, password) {
+		renderLoginError()
 		return
 	}
 
@@ -129,6 +146,7 @@ func (h *AuthHandler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := r.FormValue("token")
+	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	confirmPassword := r.FormValue("confirm_password")
 
@@ -142,6 +160,14 @@ func (h *AuthHandler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	if username == "" || strings.ContainsAny(username, " \t\n\r") {
+		renderError("", "Username must not be empty or contain spaces.")
+		return
+	}
+	if len(username) > 64 {
+		renderError("", "Username must be 64 characters or fewer.")
+		return
+	}
 	if password == "" || password != confirmPassword {
 		renderError("", "Passwords do not match or are empty.")
 		return
@@ -166,7 +192,7 @@ func (h *AuthHandler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newUserID := auth.NewID()
-	if err := h.invites.AcceptInvite(r.Context(), invite.ID, newUserID, invite.Email, hash, string(invite.Role)); err != nil {
+	if err := h.invites.AcceptInvite(r.Context(), invite.ID, newUserID, username, invite.Email, hash, string(invite.Role)); err != nil {
 		slog.Error("accept-invite: accept failed", "err", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return

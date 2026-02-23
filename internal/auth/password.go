@@ -40,15 +40,16 @@ func GenerateToken() string {
 // UserCreator is the minimal interface needed for seeding the first admin.
 type UserCreator interface {
 	CountAll(ctx context.Context) (int, error)
-	Create(ctx context.Context, id, email, passwordHash, role string) error
+	Create(ctx context.Context, id, username, email, passwordHash, role string) error
 }
 
 // SeedFirstAdmin creates the initial super_admin account from env vars if the
 // admin_users table is empty.
 func SeedFirstAdmin(ctx context.Context, users UserCreator) {
+	username := os.Getenv("SEED_ADMIN_USERNAME")
 	email := os.Getenv("SEED_ADMIN_EMAIL")
 	password := os.Getenv("SEED_ADMIN_PASSWORD")
-	if email == "" || password == "" {
+	if username == "" || email == "" || password == "" {
 		return
 	}
 
@@ -67,9 +68,9 @@ func SeedFirstAdmin(ctx context.Context, users UserCreator) {
 		return
 	}
 
-	if err := users.Create(ctx, NewID(), email, hash, "super_admin"); err != nil {
+	if err := users.Create(ctx, NewID(), username, email, hash, "super_admin"); err != nil {
 		slog.Error("seed: failed to create admin user", "err", err)
 		return
 	}
-	slog.Info("seed: created first super_admin", "email", email)
+	slog.Info("seed: created first super_admin", "username", username)
 }

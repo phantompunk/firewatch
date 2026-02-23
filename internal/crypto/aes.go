@@ -3,9 +3,13 @@ package crypto
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io"
+	"strings"
 )
 
 // Crypter encrypts and decrypts data using AES-256-GCM.
@@ -38,6 +42,15 @@ func (c *Crypter) Encrypt(plaintext []byte) ([]byte, error) {
 	}
 	ciphertext := gcm.Seal(nonce, nonce, plaintext, nil)
 	return ciphertext, nil
+}
+
+// EmailHMAC normalises the email address (lowercase, trimmed) and returns its
+// HMAC-SHA256 hex digest using the provided key.
+func EmailHMAC(key []byte, email string) string {
+	normalised := strings.ToLower(strings.TrimSpace(email))
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(normalised))
+	return hex.EncodeToString(mac.Sum(nil))
 }
 
 // Decrypt decrypts ciphertext produced by Encrypt.

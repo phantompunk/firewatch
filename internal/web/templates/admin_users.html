@@ -45,7 +45,7 @@
   <table id="users-table">
     <thead>
       <tr>
-        <th>Email</th>
+        <th>Username</th>
         <th>Role</th>
         <th>Status</th>
         <th>Last Login</th>
@@ -55,12 +55,12 @@
     <tbody>
       {{range .Users}}
       <tr id="user-{{.ID}}">
-        <td>{{.Email}}</td>
+        <td>{{.Username}}</td>
         <td>{{.Role}}</td>
         <td>{{.Status}}</td>
         <td>{{if .LastLoginAt}}{{.LastLoginAt.Format "2006-01-02 15:04"}}{{else}}Never{{end}}</td>
         <td>
-          <button onclick="deleteUser('{{.ID}}', '{{.Email}}')">Delete</button>
+          <button onclick="deleteUser('{{.ID}}', '{{.Username}}')">Delete</button>
         </td>
       </tr>
       {{end}}

@@ -21,10 +21,12 @@ type Querier interface {
 	DeleteExpiredSessions(ctx context.Context) error
 	DeleteSessionsByUserID(ctx context.Context, userID string) error
 	DemoteLiveSchemas(ctx context.Context) error
-	GetAdminUserByEmail(ctx context.Context, email string) (AdminUser, error)
+	GetAdminUserByEmailHMAC(ctx context.Context, emailHmac string) (GetAdminUserByEmailHMACRow, error)
 	GetAdminUserByID(ctx context.Context, id string) (GetAdminUserByIDRow, error)
+	GetAdminUserByUsername(ctx context.Context, username string) (GetAdminUserByUsernameRow, error)
+	GetAdminUserEmailEncryptedByID(ctx context.Context, id string) ([]byte, error)
 	GetAdminUserRoleByID(ctx context.Context, id string) (string, error)
-	GetInviteByTokenHash(ctx context.Context, tokenHash string) (InvitationToken, error)
+	GetInviteByTokenHash(ctx context.Context, tokenHash string) (GetInviteByTokenHashRow, error)
 	GetReportSchema(ctx context.Context, isLive bool) ([]byte, error)
 	GetSessionUserID(ctx context.Context, id string) (string, error)
 	GetSettings(ctx context.Context) ([]byte, error)

@@ -48,13 +48,16 @@ func New() (*App, error) {
 	}
 
 	schemaStore := store.NewSchemaStore(pool)
-	userStore := store.NewUserStore(pool)
 	sessionStore := store.NewSessionStore(pool)
 
 	encryptKey := make([]byte, 32)
 	copy(encryptKey, []byte(cfg.SettingsEncryptionKey)[:32])
 	crypter := crypto.New(encryptKey)
 	settingsStore := store.NewSettingsStore(pool, crypter)
+
+	hmacKey := make([]byte, 32)
+	copy(hmacKey, []byte(cfg.EmailHMACKey)[:32])
+	userStore := store.NewUserStore(pool, crypter, hmacKey)
 
 	// TODO: force password reset on first login if seeded from env vars
 	auth.SeedFirstAdmin(ctx, userStore)

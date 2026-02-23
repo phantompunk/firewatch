@@ -2,21 +2,26 @@
 SELECT COUNT(*) FROM admin_users;
 
 -- name: CreateAdminUser :exec
-INSERT INTO admin_users (id, email, password_hash, role)
-VALUES ($1, $2, $3, $4);
+INSERT INTO admin_users (id, username, email_hmac, email_encrypted, password_hash, role)
+VALUES ($1, $2, $3, $4, $5, $6);
 
--- name: GetAdminUserByEmail :one
-SELECT id, email, password_hash, role, status, created_at, last_login_at
+-- name: GetAdminUserByEmailHMAC :one
+SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at
 FROM admin_users
-WHERE email = $1;
+WHERE email_hmac = $1;
+
+-- name: GetAdminUserByUsername :one
+SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at
+FROM admin_users
+WHERE username = $1;
 
 -- name: GetAdminUserByID :one
-SELECT id, email, role, status, created_at, last_login_at
+SELECT id, username, role, status, created_at, last_login_at
 FROM admin_users
 WHERE id = $1;
 
 -- name: ListAdminUsers :many
-SELECT id, email, role, status, created_at, last_login_at
+SELECT id, username, role, status, created_at, last_login_at
 FROM admin_users
 ORDER BY created_at;
 
@@ -38,3 +43,6 @@ SELECT role FROM admin_users WHERE id = $1;
 
 -- name: DeleteAdminUser :exec
 DELETE FROM admin_users WHERE id = $1;
+
+-- name: GetAdminUserEmailEncryptedByID :one
+SELECT email_encrypted FROM admin_users WHERE id = $1;

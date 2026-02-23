@@ -1,9 +1,9 @@
 -- name: CreateInvite :exec
-INSERT INTO invitation_tokens (id, email, role, token_hash, expires_at)
+INSERT INTO invitation_tokens (id, email_encrypted, role, token_hash, expires_at)
 VALUES ($1, $2, $3, $4, $5);
 
 -- name: GetInviteByTokenHash :one
-SELECT id, email, role, token_hash, expires_at, used
+SELECT id, email_encrypted, role, token_hash, expires_at, used
 FROM invitation_tokens
 WHERE token_hash = $1
   AND used = FALSE
