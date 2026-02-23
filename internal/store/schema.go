@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	dbpkg "github.com/firewatch/internal/db"
@@ -60,7 +61,9 @@ func (s *SchemaStore) SaveDraft(ctx context.Context, schema *model.ReportSchema,
 	})
 }
 
-// PromoteDraft atomically sets the latest draft as live.
+// PromoteDraft atomically sets the latest draft as live, then seeds a new
+// draft from the published schema so the editor always starts from the
+// current live state.
 func (s *SchemaStore) PromoteDraft(ctx context.Context, updatedBy string) error {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
@@ -75,7 +78,17 @@ func (s *SchemaStore) PromoteDraft(ctx context.Context, updatedBy string) error 
 	if err := qtx.PromoteLatestDraft(ctx, pgtype.Text{String: updatedBy, Valid: updatedBy != ""}); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	// Copy the just-published live schema into a new draft row so the editor
+	// opens from the published version rather than a stale older draft.
+	live, err := s.load(ctx, true)
+	if err != nil {
+		return fmt.Errorf("copy live to draft after promote: %w", err)
+	}
+	return s.SaveDraft(ctx, live, updatedBy)
 }
 
 // SeedDefault inserts the default SALUTE schema as both draft and live if the
