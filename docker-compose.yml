@@ -1,45 +1,10 @@
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: firewatch
-      POSTGRES_USER: firewatch
-      POSTGRES_PASSWORD: firewatch
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U firewatch -d firewatch"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  migrate:
+  app:
     build: .
-    entrypoint: ["/migrate"]
     environment:
-      DATABASE_URL: postgres://firewatch:firewatch@db:5432/firewatch?sslmode=disable
-      MIGRATIONS_DIR: /migrations
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: on-failure
-
-  # server:
-  #   build: .
-  #   env_file: .env
-  #   environment:
-  #     DATABASE_URL: postgres://firewatch:firewatch@db:5432/firewatch?sslmode=disable
-  #     LISTEN_ADDR: :8080
-  #     SECURE_COOKIES: "false"
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     migrate:
-  #       condition: service_completed_successfully
-  #   restart: unless-stopped
+      - DATABASE_URL=/data/firewatch.db?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&parseTime=true
+    volumes:
+      - firewatch_data:/data
 
 volumes:
-  postgres_data:
+  firewatch_data:

@@ -6,17 +6,24 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	_ "modernc.org/sqlite"
 	"net/http"
 	"os"
 	"time"
 
+	_ "modernc.org/sqlite"
+
 	"github.com/firewatch/internal/auth"
 	"github.com/firewatch/internal/config"
 	"github.com/firewatch/internal/crypto"
+	"github.com/firewatch/internal/db/migrations"
 	"github.com/firewatch/internal/mailer"
 	"github.com/firewatch/internal/store"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/sqlite"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"golang.org/x/sync/errgroup"
+	_ "modernc.org/sqlite"
 )
 
 type App struct {
@@ -133,6 +140,10 @@ func openDB(ctx context.Context, cfg *config.Config) (*sql.DB, error) {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
+	if err := runMigrations(db); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+
 	// One writer at a time — prevents SQLITE_BUSY under concurrent requests
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
@@ -142,6 +153,27 @@ func openDB(ctx context.Context, cfg *config.Config) (*sql.DB, error) {
 		return nil, fmt.Errorf("ping sqlite: %w", err)
 	}
 	return db, nil
+}
+
+func runMigrations(db *sql.DB) error {
+	sourceDriver, err := iofs.New(migrations.FS, ".")
+	if err != nil {
+		return err
+	}
+
+	// 2. Create database driver
+	dbDriver, err := sqlite.WithInstance(db, &sqlite.Config{})
+	if err != nil {
+		return err
+	}
+
+	// 3. Run migrate
+	m, err := migrate.NewWithInstance("iofs", sourceDriver, "sqlite", dbDriver)
+	if err != nil {
+		return err
+	}
+
+	return m.Up()
 }
 
 func newLogger(cfg *config.Config) *slog.Logger {

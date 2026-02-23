@@ -39,7 +39,6 @@ func NewAdminReportHandler(logger *slog.Logger, schemas schemaDraftStore, tmpl *
 func (h *AdminReportHandler) Page(w http.ResponseWriter, r *http.Request) {
 	schema, err := h.schemas.DraftSchema(r.Context())
 	if err != nil {
-		schema = h.schemas
 		slog.Error("admin_report: failed to load draft schema", "err", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
