@@ -1,8 +1,9 @@
 services:
   app:
     build: .
-    environment:
-      - DATABASE_URL=/data/firewatch.db?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&parseTime=true
+    ports:
+      - "8080:8080"
+    env_file: .env
     volumes:
       - firewatch_data:/data
 
