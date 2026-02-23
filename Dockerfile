@@ -1,13 +1,24 @@
-# Build stage
 FROM golang:1.24-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/server
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
+RUN go build -ldflags="-s -w" -o app ./cmd/server
 
-# Final stage
-FROM gcr.io/distroless/static-debian12
-COPY --from=builder /app/server /server
-EXPOSE 8080
-ENTRYPOINT ["/server"]
+# ---------- Runtime Stage ----------
+FROM alpine:3.19 AS final
+
+WORKDIR /app
+
+RUN apk add --no-cache su-exec \
+    && adduser -D appuser \
+    && mkdir -p /data && chown appuser:appuser /data
+
+# Copy binary and entrypoint
+COPY --from=builder /app/app .
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["./app"]
