@@ -2,23 +2,21 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	dbpkg "github.com/firewatch/internal/db"
 	"github.com/firewatch/internal/model"
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type SchemaStore struct {
 	q  *dbpkg.Queries
-	db *pgxpool.Pool
+	db *sql.DB
 }
 
-func NewSchemaStore(pool *pgxpool.Pool) *SchemaStore {
-	return &SchemaStore{q: dbpkg.New(pool), db: pool}
+func NewSchemaStore(db *sql.DB) *SchemaStore {
+	return &SchemaStore{q: dbpkg.New(db), db: db}
 }
 
 // LiveSchema returns the currently published schema.
@@ -32,7 +30,7 @@ func (s *SchemaStore) DraftSchema(ctx context.Context) (*model.ReportSchema, err
 }
 
 func (s *SchemaStore) load(ctx context.Context, live bool) (*model.ReportSchema, error) {
-	raw, err := s.q.GetReportSchema(ctx, live)
+	raw, err := s.q.GetReportSchema(ctx, fastBoolConv(live))
 	if err != nil {
 		return nil, err
 	}
@@ -45,39 +43,51 @@ func (s *SchemaStore) load(ctx context.Context, live bool) (*model.ReportSchema,
 
 // SaveDraft persists the draft schema.
 func (s *SchemaStore) SaveDraft(ctx context.Context, schema *model.ReportSchema, updatedBy string) error {
-	schema.UpdatedAt = time.Now().UTC()
-	schema.UpdatedBy = updatedBy
-
 	raw, err := json.Marshal(schema)
 	if err != nil {
 		return err
 	}
-	return s.q.UpsertDraftSchema(ctx, dbpkg.UpsertDraftSchemaParams{
-		Version:   int32(schema.SchemaVersion),
-		Schema:    raw,
-		UpdatedAt: pgtype.Timestamptz{Time: schema.UpdatedAt, Valid: true},
-		UpdatedBy: pgtype.Text{String: updatedBy, Valid: updatedBy != ""},
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := s.q.WithTx(tx)
+	if err := q.DeleteDraftSchemas(ctx); err != nil {
+		return fmt.Errorf("delete drafts: %w", err)
+	}
+
+	err = q.InsertDraftSchema(ctx, dbpkg.InsertDraftSchemaParams{
+		Version:    int64(schema.SchemaVersion),
+		SchemaData: json.RawMessage(raw),
+		UpdatedBy:  sql.NullString{String: updatedBy, Valid: updatedBy != ""},
 	})
+	if err != nil {
+		return fmt.Errorf("insert draft: %w", err)
+	}
+	return tx.Commit()
 }
 
 // PromoteDraft atomically sets the latest draft as live, then seeds a new
 // draft from the published schema so the editor always starts from the
 // current live state.
 func (s *SchemaStore) PromoteDraft(ctx context.Context, updatedBy string) error {
-	tx, err := s.db.Begin(ctx)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback() }()
 
 	qtx := s.q.WithTx(tx)
 	if err := qtx.DemoteLiveSchemas(ctx); err != nil {
 		return err
 	}
-	if err := qtx.PromoteLatestDraft(ctx, pgtype.Text{String: updatedBy, Valid: updatedBy != ""}); err != nil {
+
+	if err := qtx.PromoteLatestDraft(ctx, sql.NullString{String: updatedBy, Valid: updatedBy != ""}); err != nil {
 		return err
 	}
-	if err := tx.Commit(ctx); err != nil {
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 
@@ -117,19 +127,30 @@ func (s *SchemaStore) SeedDefault(ctx context.Context) error {
 		return err
 	}
 
-	// Insert live row.
-	if err := s.q.InsertReportSchemaRow(ctx, dbpkg.InsertReportSchemaRowParams{
-		Version: int32(schema.SchemaVersion),
-		IsLive:  true,
-		Schema:  raw,
+	// Insert draft row.
+	if err := s.q.InsertDraftSchema(ctx, dbpkg.InsertDraftSchemaParams{
+		Version: int64(schema.SchemaVersion),
+		SchemaData:  json.RawMessage(raw),
+		UpdatedBy:  sql.NullString{String: "admin", Valid: true},
 	}); err != nil {
 		return err
 	}
 
-	// Insert draft row.
-	return s.q.InsertReportSchemaRow(ctx, dbpkg.InsertReportSchemaRowParams{
-		Version: int32(schema.SchemaVersion),
-		IsLive:  false,
-		Schema:  raw,
+	// Insert live row.
+	if err := s.q.PromoteLatestDraft(ctx, sql.NullString{String: "admin", Valid: true}); err != nil {
+		return err
+	}
+
+	return s.q.InsertDraftSchema(ctx, dbpkg.InsertDraftSchemaParams{
+		Version: int64(schema.SchemaVersion),
+		SchemaData:  json.RawMessage(raw),
+		UpdatedBy:  sql.NullString{String: "admin", Valid: true},
 	})
+}
+
+func fastBoolConv(b bool) int64 {
+	if b {
+		return 1
+	}
+	return 0
 }

@@ -7,8 +7,8 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
+	"database/sql"
+	"encoding/json"
 )
 
 const countReportSchemas = `-- name: CountReportSchemas :one
@@ -16,88 +16,103 @@ SELECT COUNT(*) FROM report_schema
 `
 
 func (q *Queries) CountReportSchemas(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countReportSchemas)
+	row := q.db.QueryRowContext(ctx, countReportSchemas)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
+const deleteDraftSchemas = `-- name: DeleteDraftSchemas :exec
+DELETE FROM report_schema WHERE is_live = 0
+`
+
+func (q *Queries) DeleteDraftSchemas(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteDraftSchemas)
+	return err
+}
+
 const demoteLiveSchemas = `-- name: DemoteLiveSchemas :exec
-UPDATE report_schema SET is_live = FALSE WHERE is_live = TRUE
+UPDATE report_schema SET is_live = 0 WHERE is_live = 1
 `
 
 func (q *Queries) DemoteLiveSchemas(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, demoteLiveSchemas)
+	_, err := q.db.ExecContext(ctx, demoteLiveSchemas)
 	return err
 }
 
 const getReportSchema = `-- name: GetReportSchema :one
+
 SELECT schema FROM report_schema
-WHERE is_live = $1
+WHERE is_live = ?
 ORDER BY id DESC
 LIMIT 1
 `
 
-func (q *Queries) GetReportSchema(ctx context.Context, isLive bool) ([]byte, error) {
-	row := q.db.QueryRow(ctx, getReportSchema, isLive)
-	var schema []byte
+// -- name: GetReportSchema :one
+// SELECT schema FROM report_schema
+// WHERE is_live = ?
+// ORDER BY id DESC
+// LIMIT 1;
+//
+// -- name: CountReportSchemas :one
+// SELECT COUNT(*) FROM report_schema;
+//
+//	-- name: DeleteDraftSchemas :exec
+//	DELETE FROM report_schema WHERE is_live = 0;
+//
+//	-- name: InsertDraftSchema :exec
+//	INSERT INTO report_schema (version, is_live, schema, updated_at, updated_by)
+//	VALUES (?, 0, ?, CURRENT_TIMESTAMP, ?);
+//
+// -- name: DemoteLiveSchemas :exec
+// UPDATE report_schema SET is_live = FALSE WHERE is_live = TRUE;
+//
+// -- name: PromoteLatestDraft :exec
+// UPDATE report_schema
+// SET is_live = TRUE, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+// WHERE id = (
+//
+//	SELECT id FROM report_schema
+//	WHERE is_live = FALSE
+//	ORDER BY id DESC
+//	LIMIT 1
+//
+// );
+func (q *Queries) GetReportSchema(ctx context.Context, isLive int64) (json.RawMessage, error) {
+	row := q.db.QueryRowContext(ctx, getReportSchema, isLive)
+	var schema json.RawMessage
 	err := row.Scan(&schema)
 	return schema, err
 }
 
-const insertReportSchemaRow = `-- name: InsertReportSchemaRow :exec
-INSERT INTO report_schema (version, is_live, schema, updated_at)
-VALUES ($1, $2, $3, NOW())
+const insertDraftSchema = `-- name: InsertDraftSchema :exec
+INSERT INTO report_schema (version, is_live, schema, updated_at, updated_by)
+VALUES (?1, 0, ?2, CURRENT_TIMESTAMP, ?3)
 `
 
-type InsertReportSchemaRowParams struct {
-	Version int32  `json:"version"`
-	IsLive  bool   `json:"is_live"`
-	Schema  []byte `json:"schema"`
+type InsertDraftSchemaParams struct {
+	Version    int64           `json:"version"`
+	SchemaData json.RawMessage `json:"schema_data"`
+	UpdatedBy  sql.NullString  `json:"updated_by"`
 }
 
-func (q *Queries) InsertReportSchemaRow(ctx context.Context, arg InsertReportSchemaRowParams) error {
-	_, err := q.db.Exec(ctx, insertReportSchemaRow, arg.Version, arg.IsLive, arg.Schema)
+func (q *Queries) InsertDraftSchema(ctx context.Context, arg InsertDraftSchemaParams) error {
+	_, err := q.db.ExecContext(ctx, insertDraftSchema, arg.Version, arg.SchemaData, arg.UpdatedBy)
 	return err
 }
 
 const promoteLatestDraft = `-- name: PromoteLatestDraft :exec
 UPDATE report_schema
-SET is_live = TRUE, updated_by = $1, updated_at = NOW()
+SET is_live = 1, updated_by = ?, updated_at = CURRENT_TIMESTAMP
 WHERE id = (
     SELECT id FROM report_schema
-    WHERE is_live = FALSE
+    WHERE is_live = 0
     ORDER BY id DESC
     LIMIT 1
 )
 `
 
-func (q *Queries) PromoteLatestDraft(ctx context.Context, updatedBy pgtype.Text) error {
-	_, err := q.db.Exec(ctx, promoteLatestDraft, updatedBy)
-	return err
-}
-
-const upsertDraftSchema = `-- name: UpsertDraftSchema :exec
-WITH removed AS (
-    DELETE FROM report_schema WHERE is_live = FALSE
-)
-INSERT INTO report_schema (version, is_live, schema, updated_at, updated_by)
-VALUES ($1, FALSE, $2, $3, $4)
-`
-
-type UpsertDraftSchemaParams struct {
-	Version   int32              `json:"version"`
-	Schema    []byte             `json:"schema"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-	UpdatedBy pgtype.Text        `json:"updated_by"`
-}
-
-func (q *Queries) UpsertDraftSchema(ctx context.Context, arg UpsertDraftSchemaParams) error {
-	_, err := q.db.Exec(ctx, upsertDraftSchema,
-		arg.Version,
-		arg.Schema,
-		arg.UpdatedAt,
-		arg.UpdatedBy,
-	)
+func (q *Queries) PromoteLatestDraft(ctx context.Context, updatedBy sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, promoteLatestDraft, updatedBy)
 	return err
 }

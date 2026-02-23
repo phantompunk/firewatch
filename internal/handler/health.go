@@ -7,7 +7,7 @@ import (
 )
 
 type pinger interface {
-	Ping(ctx context.Context) error
+	PingContext(ctx context.Context) error
 }
 
 // Health returns a health check handler that verifies database connectivity.
@@ -16,7 +16,7 @@ func Health(db pinger) http.HandlerFunc {
 		status := "ok"
 		code := http.StatusOK
 
-		if err := db.Ping(r.Context()); err != nil {
+		if err := db.PingContext(r.Context()); err != nil {
 			status = "degraded"
 			code = http.StatusServiceUnavailable
 		}

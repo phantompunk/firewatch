@@ -7,50 +7,48 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createSession = `-- name: CreateSession :exec
-INSERT INTO sessions (id, user_id, expires_at) VALUES ($1, $2, $3)
+INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)
 `
 
 type CreateSessionParams struct {
-	ID        string             `json:"id"`
-	UserID    string             `json:"user_id"`
-	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	ID        string `json:"id"`
+	UserID    string `json:"user_id"`
+	ExpiresAt string `json:"expires_at"`
 }
 
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) error {
-	_, err := q.db.Exec(ctx, createSession, arg.ID, arg.UserID, arg.ExpiresAt)
+	_, err := q.db.ExecContext(ctx, createSession, arg.ID, arg.UserID, arg.ExpiresAt)
 	return err
 }
 
 const deleteExpiredSessions = `-- name: DeleteExpiredSessions :exec
-DELETE FROM sessions WHERE expires_at <= NOW()
+DELETE FROM sessions WHERE expires_at <= CURRENT_TIMESTAMP
 `
 
 func (q *Queries) DeleteExpiredSessions(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, deleteExpiredSessions)
+	_, err := q.db.ExecContext(ctx, deleteExpiredSessions)
 	return err
 }
 
 const deleteSessionsByUserID = `-- name: DeleteSessionsByUserID :exec
-DELETE FROM sessions WHERE user_id = $1
+DELETE FROM sessions WHERE user_id = ?
 `
 
 func (q *Queries) DeleteSessionsByUserID(ctx context.Context, userID string) error {
-	_, err := q.db.Exec(ctx, deleteSessionsByUserID, userID)
+	_, err := q.db.ExecContext(ctx, deleteSessionsByUserID, userID)
 	return err
 }
 
 const getSessionUserID = `-- name: GetSessionUserID :one
 SELECT user_id FROM sessions
-WHERE id = $1 AND expires_at > NOW()
+WHERE id = ? AND expires_at > CURRENT_TIMESTAMP
 `
 
 func (q *Queries) GetSessionUserID(ctx context.Context, id string) (string, error) {
-	row := q.db.QueryRow(ctx, getSessionUserID, id)
+	row := q.db.QueryRowContext(ctx, getSessionUserID, id)
 	var user_id string
 	err := row.Scan(&user_id)
 	return user_id, err

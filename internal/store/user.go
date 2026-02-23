@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -10,9 +11,6 @@ import (
 	"github.com/firewatch/internal/crypto"
 	dbpkg "github.com/firewatch/internal/db"
 	"github.com/firewatch/internal/model"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // ErrNotFound is returned when a requested record does not exist.
@@ -20,13 +18,13 @@ var ErrNotFound = errors.New("not found")
 
 type UserStore struct {
 	q       *dbpkg.Queries
-	pool    *pgxpool.Pool
+	db      *sql.DB
 	crypter *crypto.Crypter
 	hmacKey []byte
 }
 
-func NewUserStore(pool *pgxpool.Pool, crypter *crypto.Crypter, hmacKey []byte) *UserStore {
-	return &UserStore{q: dbpkg.New(pool), pool: pool, crypter: crypter, hmacKey: hmacKey}
+func NewUserStore(db *sql.DB, crypter *crypto.Crypter, hmacKey []byte) *UserStore {
+	return &UserStore{q: dbpkg.New(db), db: db, crypter: crypter, hmacKey: hmacKey}
 }
 
 func (s *UserStore) CountAll(ctx context.Context) (int, error) {
@@ -56,19 +54,31 @@ func (s *UserStore) Create(ctx context.Context, id, username, email, passwordHas
 func (s *UserStore) GetByEmailHMAC(ctx context.Context, email string) (*model.AdminUser, string, error) {
 	h := crypto.EmailHMAC(s.hmacKey, email)
 	row, err := s.q.GetAdminUserByEmailHMAC(ctx, h)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, "", ErrNotFound
 	}
 	if err != nil {
 		return nil, "", fmt.Errorf("get user by email hmac: %w", err)
+	}
+	createdAt, err := parseSQLiteTime(row.CreatedAt)
+	if err != nil {
+		return nil, "", fmt.Errorf("parse created_at: %w", err)
+	}
+	var lastLoginAt *time.Time
+	if row.LastLoginAt.Valid {
+		t, err := parseSQLiteTime(row.LastLoginAt.String)
+		if err != nil {
+			return nil, "", fmt.Errorf("parse last_login_at: %w", err)
+		}
+		lastLoginAt = &t
 	}
 	u := &model.AdminUser{
 		ID:          row.ID,
 		Username:    row.Username,
 		Role:        model.Role(row.Role),
 		Status:      model.Status(row.Status),
-		CreatedAt:   row.CreatedAt.Time,
-		LastLoginAt: pgtimePtr(row.LastLoginAt),
+		CreatedAt:   createdAt,
+		LastLoginAt: lastLoginAt,
 	}
 	return u, row.PasswordHash, nil
 }
@@ -77,38 +87,62 @@ func (s *UserStore) GetByEmailHMAC(ctx context.Context, email string) (*model.Ad
 // Returns the user model and the password hash for verification.
 func (s *UserStore) GetByUsername(ctx context.Context, username string) (*model.AdminUser, string, error) {
 	row, err := s.q.GetAdminUserByUsername(ctx, username)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, "", ErrNotFound
 	}
 	if err != nil {
 		return nil, "", fmt.Errorf("get user by username: %w", err)
+	}
+	createdAt, err := parseSQLiteTime(row.CreatedAt)
+	if err != nil {
+		return nil, "", fmt.Errorf("parse created_at: %w", err)
+	}
+	var lastLoginAt *time.Time
+	if row.LastLoginAt.Valid {
+		t, err := parseSQLiteTime(row.LastLoginAt.String)
+		if err != nil {
+			return nil, "", fmt.Errorf("parse last_login_at: %w", err)
+		}
+		lastLoginAt = &t
 	}
 	u := &model.AdminUser{
 		ID:          row.ID,
 		Username:    row.Username,
 		Role:        model.Role(row.Role),
 		Status:      model.Status(row.Status),
-		CreatedAt:   row.CreatedAt.Time,
-		LastLoginAt: pgtimePtr(row.LastLoginAt),
+		CreatedAt:   createdAt,
+		LastLoginAt: lastLoginAt,
 	}
 	return u, row.PasswordHash, nil
 }
 
 func (s *UserStore) GetByID(ctx context.Context, id string) (*model.AdminUser, error) {
 	row, err := s.q.GetAdminUserByID(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get user by id: %w", err)
+	}
+	createdAt, err := parseSQLiteTime(row.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("parse created_at: %w", err)
+	}
+	var lastLoginAt *time.Time
+	if row.LastLoginAt.Valid {
+		t, err := parseSQLiteTime(row.LastLoginAt.String)
+		if err != nil {
+			return nil, fmt.Errorf("parse last_login_at: %w", err)
+		}
+		lastLoginAt = &t
 	}
 	return &model.AdminUser{
 		ID:          row.ID,
 		Username:    row.Username,
 		Role:        model.Role(row.Role),
 		Status:      model.Status(row.Status),
-		CreatedAt:   row.CreatedAt.Time,
-		LastLoginAt: pgtimePtr(row.LastLoginAt),
+		CreatedAt:   createdAt,
+		LastLoginAt: lastLoginAt,
 	}, nil
 }
 
@@ -119,13 +153,25 @@ func (s *UserStore) ListAll(ctx context.Context) ([]model.AdminUser, error) {
 	}
 	users := make([]model.AdminUser, len(rows))
 	for i, row := range rows {
+		createdAt, err := parseSQLiteTime(row.CreatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("parse created_at: %w", err)
+		}
+		var lastLoginAt *time.Time
+		if row.LastLoginAt.Valid {
+			t, err := parseSQLiteTime(row.LastLoginAt.String)
+			if err != nil {
+				return nil, fmt.Errorf("parse last_login_at: %w", err)
+			}
+			lastLoginAt = &t
+		}
 		users[i] = model.AdminUser{
 			ID:          row.ID,
 			Username:    row.Username,
 			Role:        model.Role(row.Role),
 			Status:      model.Status(row.Status),
-			CreatedAt:   row.CreatedAt.Time,
-			LastLoginAt: pgtimePtr(row.LastLoginAt),
+			CreatedAt:   createdAt,
+			LastLoginAt: lastLoginAt,
 		}
 	}
 	return users, nil
@@ -135,7 +181,7 @@ func (s *UserStore) ListAll(ctx context.Context) ([]model.AdminUser, error) {
 // Used by the password-reset flow to send the reset email.
 func (s *UserStore) GetEmailByID(ctx context.Context, id string) (string, error) {
 	enc, err := s.q.GetAdminUserEmailEncryptedByID(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrNotFound
 	}
 	if err != nil {
@@ -194,7 +240,7 @@ func (s *UserStore) CreateInvite(ctx context.Context, id, email, role, rawToken 
 		EmailEncrypted: emailEnc,
 		Role:           role,
 		TokenHash:      hash,
-		ExpiresAt:      pgtype.Timestamptz{Time: time.Now().Add(48 * time.Hour), Valid: true},
+		ExpiresAt:      time.Now().Add(48 * time.Hour).UTC().Format("2006-01-02 15:04:05"),
 	})
 }
 
@@ -202,7 +248,7 @@ func (s *UserStore) CreateInvite(ctx context.Context, id, email, role, rawToken 
 func (s *UserStore) GetInviteByToken(ctx context.Context, rawToken string) (*model.Invite, error) {
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(rawToken)))
 	row, err := s.q.GetInviteByTokenHash(ctx, hash)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
 	if err != nil {
@@ -221,11 +267,11 @@ func (s *UserStore) GetInviteByToken(ctx context.Context, rawToken string) (*mod
 
 // AcceptInvite creates the new admin user and marks the invite as used in one transaction.
 func (s *UserStore) AcceptInvite(ctx context.Context, inviteID, userID, username, email, passwordHash, role string) error {
-	tx, err := s.pool.Begin(ctx)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer func() { _ = tx.Rollback(ctx) }()
+	defer func() { _ = tx.Rollback() }()
 
 	emailEnc, err := s.crypter.Encrypt([]byte(email))
 	if err != nil {
@@ -247,7 +293,7 @@ func (s *UserStore) AcceptInvite(ctx context.Context, inviteID, userID, username
 	if err := q.MarkInviteUsed(ctx, inviteID); err != nil {
 		return fmt.Errorf("mark invite used: %w", err)
 	}
-	return tx.Commit(ctx)
+	return tx.Commit()
 }
 
 var errLastSuperAdmin = errStr("cannot delete the last super_admin account")
@@ -256,9 +302,11 @@ type errStr string
 
 func (e errStr) Error() string { return string(e) }
 
-func pgtimePtr(t pgtype.Timestamptz) *time.Time {
-	if !t.Valid {
-		return nil
+func parseSQLiteTime(s string) (time.Time, error) {
+	for _, layout := range []string{"2006-01-02T15:04:05Z", "2006-01-02 15:04:05"} {
+		if t, err := time.ParseInLocation(layout, s, time.UTC); err == nil {
+			return t, nil
+		}
 	}
-	return &t.Time
+	return time.Time{}, fmt.Errorf("unrecognised sqlite time format: %q", s)
 }

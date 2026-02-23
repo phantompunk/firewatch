@@ -7,8 +7,7 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
+	"database/sql"
 )
 
 const countActiveSuperAdmins = `-- name: CountActiveSuperAdmins :one
@@ -17,7 +16,7 @@ WHERE role = 'super_admin' AND status = 'active'
 `
 
 func (q *Queries) CountActiveSuperAdmins(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countActiveSuperAdmins)
+	row := q.db.QueryRowContext(ctx, countActiveSuperAdmins)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -28,7 +27,7 @@ SELECT COUNT(*) FROM admin_users
 `
 
 func (q *Queries) CountAdminUsers(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countAdminUsers)
+	row := q.db.QueryRowContext(ctx, countAdminUsers)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -36,7 +35,7 @@ func (q *Queries) CountAdminUsers(ctx context.Context) (int64, error) {
 
 const createAdminUser = `-- name: CreateAdminUser :exec
 INSERT INTO admin_users (id, username, email_hmac, email_encrypted, password_hash, role)
-VALUES ($1, $2, $3, $4, $5, $6)
+VALUES (?, ?, ?, ?, ?, ?)
 `
 
 type CreateAdminUserParams struct {
@@ -49,7 +48,7 @@ type CreateAdminUserParams struct {
 }
 
 func (q *Queries) CreateAdminUser(ctx context.Context, arg CreateAdminUserParams) error {
-	_, err := q.db.Exec(ctx, createAdminUser,
+	_, err := q.db.ExecContext(ctx, createAdminUser,
 		arg.ID,
 		arg.Username,
 		arg.EmailHmac,
@@ -61,34 +60,34 @@ func (q *Queries) CreateAdminUser(ctx context.Context, arg CreateAdminUserParams
 }
 
 const deleteAdminUser = `-- name: DeleteAdminUser :exec
-DELETE FROM admin_users WHERE id = $1
+DELETE FROM admin_users WHERE id = ?
 `
 
 func (q *Queries) DeleteAdminUser(ctx context.Context, id string) error {
-	_, err := q.db.Exec(ctx, deleteAdminUser, id)
+	_, err := q.db.ExecContext(ctx, deleteAdminUser, id)
 	return err
 }
 
 const getAdminUserByEmailHMAC = `-- name: GetAdminUserByEmailHMAC :one
 SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at
 FROM admin_users
-WHERE email_hmac = $1
+WHERE email_hmac = ?
 `
 
 type GetAdminUserByEmailHMACRow struct {
-	ID             string             `json:"id"`
-	Username       string             `json:"username"`
-	EmailEncrypted []byte             `json:"email_encrypted"`
-	EmailHmac      string             `json:"email_hmac"`
-	PasswordHash   string             `json:"password_hash"`
-	Role           string             `json:"role"`
-	Status         string             `json:"status"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	LastLoginAt    pgtype.Timestamptz `json:"last_login_at"`
+	ID             string         `json:"id"`
+	Username       string         `json:"username"`
+	EmailEncrypted []byte         `json:"email_encrypted"`
+	EmailHmac      string         `json:"email_hmac"`
+	PasswordHash   string         `json:"password_hash"`
+	Role           string         `json:"role"`
+	Status         string         `json:"status"`
+	CreatedAt      string         `json:"created_at"`
+	LastLoginAt    sql.NullString `json:"last_login_at"`
 }
 
 func (q *Queries) GetAdminUserByEmailHMAC(ctx context.Context, emailHmac string) (GetAdminUserByEmailHMACRow, error) {
-	row := q.db.QueryRow(ctx, getAdminUserByEmailHMAC, emailHmac)
+	row := q.db.QueryRowContext(ctx, getAdminUserByEmailHMAC, emailHmac)
 	var i GetAdminUserByEmailHMACRow
 	err := row.Scan(
 		&i.ID,
@@ -107,20 +106,20 @@ func (q *Queries) GetAdminUserByEmailHMAC(ctx context.Context, emailHmac string)
 const getAdminUserByID = `-- name: GetAdminUserByID :one
 SELECT id, username, role, status, created_at, last_login_at
 FROM admin_users
-WHERE id = $1
+WHERE id = ?
 `
 
 type GetAdminUserByIDRow struct {
-	ID          string             `json:"id"`
-	Username    string             `json:"username"`
-	Role        string             `json:"role"`
-	Status      string             `json:"status"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	LastLoginAt pgtype.Timestamptz `json:"last_login_at"`
+	ID          string         `json:"id"`
+	Username    string         `json:"username"`
+	Role        string         `json:"role"`
+	Status      string         `json:"status"`
+	CreatedAt   string         `json:"created_at"`
+	LastLoginAt sql.NullString `json:"last_login_at"`
 }
 
 func (q *Queries) GetAdminUserByID(ctx context.Context, id string) (GetAdminUserByIDRow, error) {
-	row := q.db.QueryRow(ctx, getAdminUserByID, id)
+	row := q.db.QueryRowContext(ctx, getAdminUserByID, id)
 	var i GetAdminUserByIDRow
 	err := row.Scan(
 		&i.ID,
@@ -136,23 +135,23 @@ func (q *Queries) GetAdminUserByID(ctx context.Context, id string) (GetAdminUser
 const getAdminUserByUsername = `-- name: GetAdminUserByUsername :one
 SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at
 FROM admin_users
-WHERE username = $1
+WHERE username = ?
 `
 
 type GetAdminUserByUsernameRow struct {
-	ID             string             `json:"id"`
-	Username       string             `json:"username"`
-	EmailEncrypted []byte             `json:"email_encrypted"`
-	EmailHmac      string             `json:"email_hmac"`
-	PasswordHash   string             `json:"password_hash"`
-	Role           string             `json:"role"`
-	Status         string             `json:"status"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	LastLoginAt    pgtype.Timestamptz `json:"last_login_at"`
+	ID             string         `json:"id"`
+	Username       string         `json:"username"`
+	EmailEncrypted []byte         `json:"email_encrypted"`
+	EmailHmac      string         `json:"email_hmac"`
+	PasswordHash   string         `json:"password_hash"`
+	Role           string         `json:"role"`
+	Status         string         `json:"status"`
+	CreatedAt      string         `json:"created_at"`
+	LastLoginAt    sql.NullString `json:"last_login_at"`
 }
 
 func (q *Queries) GetAdminUserByUsername(ctx context.Context, username string) (GetAdminUserByUsernameRow, error) {
-	row := q.db.QueryRow(ctx, getAdminUserByUsername, username)
+	row := q.db.QueryRowContext(ctx, getAdminUserByUsername, username)
 	var i GetAdminUserByUsernameRow
 	err := row.Scan(
 		&i.ID,
@@ -169,22 +168,22 @@ func (q *Queries) GetAdminUserByUsername(ctx context.Context, username string) (
 }
 
 const getAdminUserEmailEncryptedByID = `-- name: GetAdminUserEmailEncryptedByID :one
-SELECT email_encrypted FROM admin_users WHERE id = $1
+SELECT email_encrypted FROM admin_users WHERE id = ?
 `
 
 func (q *Queries) GetAdminUserEmailEncryptedByID(ctx context.Context, id string) ([]byte, error) {
-	row := q.db.QueryRow(ctx, getAdminUserEmailEncryptedByID, id)
+	row := q.db.QueryRowContext(ctx, getAdminUserEmailEncryptedByID, id)
 	var email_encrypted []byte
 	err := row.Scan(&email_encrypted)
 	return email_encrypted, err
 }
 
 const getAdminUserRoleByID = `-- name: GetAdminUserRoleByID :one
-SELECT role FROM admin_users WHERE id = $1
+SELECT role FROM admin_users WHERE id = ?
 `
 
 func (q *Queries) GetAdminUserRoleByID(ctx context.Context, id string) (string, error) {
-	row := q.db.QueryRow(ctx, getAdminUserRoleByID, id)
+	row := q.db.QueryRowContext(ctx, getAdminUserRoleByID, id)
 	var role string
 	err := row.Scan(&role)
 	return role, err
@@ -197,16 +196,16 @@ ORDER BY created_at
 `
 
 type ListAdminUsersRow struct {
-	ID          string             `json:"id"`
-	Username    string             `json:"username"`
-	Role        string             `json:"role"`
-	Status      string             `json:"status"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	LastLoginAt pgtype.Timestamptz `json:"last_login_at"`
+	ID          string         `json:"id"`
+	Username    string         `json:"username"`
+	Role        string         `json:"role"`
+	Status      string         `json:"status"`
+	CreatedAt   string         `json:"created_at"`
+	LastLoginAt sql.NullString `json:"last_login_at"`
 }
 
 func (q *Queries) ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, error) {
-	rows, err := q.db.Query(ctx, listAdminUsers)
+	rows, err := q.db.QueryContext(ctx, listAdminUsers)
 	if err != nil {
 		return nil, err
 	}
@@ -226,6 +225,9 @@ func (q *Queries) ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, erro
 		}
 		items = append(items, i)
 	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -233,16 +235,16 @@ func (q *Queries) ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, erro
 }
 
 const updateAdminUserLastLogin = `-- name: UpdateAdminUserLastLogin :exec
-UPDATE admin_users SET last_login_at = NOW() WHERE id = $1
+UPDATE admin_users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?
 `
 
 func (q *Queries) UpdateAdminUserLastLogin(ctx context.Context, id string) error {
-	_, err := q.db.Exec(ctx, updateAdminUserLastLogin, id)
+	_, err := q.db.ExecContext(ctx, updateAdminUserLastLogin, id)
 	return err
 }
 
 const updateAdminUserPassword = `-- name: UpdateAdminUserPassword :exec
-UPDATE admin_users SET password_hash = $1 WHERE id = $2
+UPDATE admin_users SET password_hash = ? WHERE id = ?
 `
 
 type UpdateAdminUserPasswordParams struct {
@@ -251,12 +253,12 @@ type UpdateAdminUserPasswordParams struct {
 }
 
 func (q *Queries) UpdateAdminUserPassword(ctx context.Context, arg UpdateAdminUserPasswordParams) error {
-	_, err := q.db.Exec(ctx, updateAdminUserPassword, arg.PasswordHash, arg.ID)
+	_, err := q.db.ExecContext(ctx, updateAdminUserPassword, arg.PasswordHash, arg.ID)
 	return err
 }
 
 const updateAdminUserRoleAndStatus = `-- name: UpdateAdminUserRoleAndStatus :exec
-UPDATE admin_users SET role = $1, status = $2 WHERE id = $3
+UPDATE admin_users SET role = ?, status = ? WHERE id = ?
 `
 
 type UpdateAdminUserRoleAndStatusParams struct {
@@ -266,6 +268,6 @@ type UpdateAdminUserRoleAndStatusParams struct {
 }
 
 func (q *Queries) UpdateAdminUserRoleAndStatus(ctx context.Context, arg UpdateAdminUserRoleAndStatusParams) error {
-	_, err := q.db.Exec(ctx, updateAdminUserRoleAndStatus, arg.Role, arg.Status, arg.ID)
+	_, err := q.db.ExecContext(ctx, updateAdminUserRoleAndStatus, arg.Role, arg.Status, arg.ID)
 	return err
 }

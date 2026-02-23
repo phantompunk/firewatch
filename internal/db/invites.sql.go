@@ -7,25 +7,23 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createInvite = `-- name: CreateInvite :exec
 INSERT INTO invitation_tokens (id, email_encrypted, role, token_hash, expires_at)
-VALUES ($1, $2, $3, $4, $5)
+VALUES (?, ?, ?, ?, ?)
 `
 
 type CreateInviteParams struct {
-	ID             string             `json:"id"`
-	EmailEncrypted []byte             `json:"email_encrypted"`
-	Role           string             `json:"role"`
-	TokenHash      string             `json:"token_hash"`
-	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	ID             string `json:"id"`
+	EmailEncrypted []byte `json:"email_encrypted"`
+	Role           string `json:"role"`
+	TokenHash      string `json:"token_hash"`
+	ExpiresAt      string `json:"expires_at"`
 }
 
 func (q *Queries) CreateInvite(ctx context.Context, arg CreateInviteParams) error {
-	_, err := q.db.Exec(ctx, createInvite,
+	_, err := q.db.ExecContext(ctx, createInvite,
 		arg.ID,
 		arg.EmailEncrypted,
 		arg.Role,
@@ -38,23 +36,14 @@ func (q *Queries) CreateInvite(ctx context.Context, arg CreateInviteParams) erro
 const getInviteByTokenHash = `-- name: GetInviteByTokenHash :one
 SELECT id, email_encrypted, role, token_hash, expires_at, used
 FROM invitation_tokens
-WHERE token_hash = $1
+WHERE token_hash = ?
   AND used = FALSE
-  AND expires_at > NOW()
+  AND expires_at > CURRENT_TIMESTAMP
 `
 
-type GetInviteByTokenHashRow struct {
-	ID             string             `json:"id"`
-	EmailEncrypted []byte             `json:"email_encrypted"`
-	Role           string             `json:"role"`
-	TokenHash      string             `json:"token_hash"`
-	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
-	Used           bool               `json:"used"`
-}
-
-func (q *Queries) GetInviteByTokenHash(ctx context.Context, tokenHash string) (GetInviteByTokenHashRow, error) {
-	row := q.db.QueryRow(ctx, getInviteByTokenHash, tokenHash)
-	var i GetInviteByTokenHashRow
+func (q *Queries) GetInviteByTokenHash(ctx context.Context, tokenHash string) (InvitationToken, error) {
+	row := q.db.QueryRowContext(ctx, getInviteByTokenHash, tokenHash)
+	var i InvitationToken
 	err := row.Scan(
 		&i.ID,
 		&i.EmailEncrypted,
@@ -67,10 +56,10 @@ func (q *Queries) GetInviteByTokenHash(ctx context.Context, tokenHash string) (G
 }
 
 const markInviteUsed = `-- name: MarkInviteUsed :exec
-UPDATE invitation_tokens SET used = TRUE WHERE id = $1
+UPDATE invitation_tokens SET used = TRUE WHERE id = ?
 `
 
 func (q *Queries) MarkInviteUsed(ctx context.Context, id string) error {
-	_, err := q.db.Exec(ctx, markInviteUsed, id)
+	_, err := q.db.ExecContext(ctx, markInviteUsed, id)
 	return err
 }

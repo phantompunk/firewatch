@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/firewatch/internal/model"
@@ -32,24 +33,30 @@ type userByIDer interface {
 func Session(sessions SessionReader, users userByIDer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			slog.Info("session: validating session")
 			cookie, err := r.Cookie(SessionCookieName)
 			if err != nil {
 				http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
 				return
 			}
 
+
+			slog.Info("session: found cookie, validating session", "cookie", cookie.Value)
 			userID, err := sessions.GetUserID(r.Context(), cookie.Value)
 			if err != nil {
+				slog.Info("session: invalid session", "err", err)
 				http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
 				return
 			}
 
+			slog.Info("session: session valid, loading user", "userID", userID)
 			user, err := users.GetByID(r.Context(), userID)
 			if err != nil {
 				http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
 				return
 			}
 
+			slog.Info("session: user loaded, adding to context", "userID", userID, "role", user.Role)
 			ctx := context.WithValue(r.Context(), contextKeyUserID, userID)
 			ctx = context.WithValue(ctx, contextKeyRole, user.Role)
 			next.ServeHTTP(w, r.WithContext(ctx))

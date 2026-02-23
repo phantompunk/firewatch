@@ -6,8 +6,8 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
+	"database/sql"
+	"encoding/json"
 )
 
 type Querier interface {
@@ -18,6 +18,7 @@ type Querier interface {
 	CreateInvite(ctx context.Context, arg CreateInviteParams) error
 	CreateSession(ctx context.Context, arg CreateSessionParams) error
 	DeleteAdminUser(ctx context.Context, id string) error
+	DeleteDraftSchemas(ctx context.Context) error
 	DeleteExpiredSessions(ctx context.Context) error
 	DeleteSessionsByUserID(ctx context.Context, userID string) error
 	DemoteLiveSchemas(ctx context.Context) error
@@ -26,18 +27,45 @@ type Querier interface {
 	GetAdminUserByUsername(ctx context.Context, username string) (GetAdminUserByUsernameRow, error)
 	GetAdminUserEmailEncryptedByID(ctx context.Context, id string) ([]byte, error)
 	GetAdminUserRoleByID(ctx context.Context, id string) (string, error)
-	GetInviteByTokenHash(ctx context.Context, tokenHash string) (GetInviteByTokenHashRow, error)
-	GetReportSchema(ctx context.Context, isLive bool) ([]byte, error)
+	GetInviteByTokenHash(ctx context.Context, tokenHash string) (InvitationToken, error)
+	// -- name: GetReportSchema :one
+	// SELECT schema FROM report_schema
+	// WHERE is_live = ?
+	// ORDER BY id DESC
+	// LIMIT 1;
+	//
+	// -- name: CountReportSchemas :one
+	// SELECT COUNT(*) FROM report_schema;
+	//
+	//  -- name: DeleteDraftSchemas :exec
+	//  DELETE FROM report_schema WHERE is_live = 0;
+	//
+	//  -- name: InsertDraftSchema :exec
+	//  INSERT INTO report_schema (version, is_live, schema, updated_at, updated_by)
+	//  VALUES (?, 0, ?, CURRENT_TIMESTAMP, ?);
+	//
+	// -- name: DemoteLiveSchemas :exec
+	// UPDATE report_schema SET is_live = FALSE WHERE is_live = TRUE;
+	//
+	// -- name: PromoteLatestDraft :exec
+	// UPDATE report_schema
+	// SET is_live = TRUE, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+	// WHERE id = (
+	//     SELECT id FROM report_schema
+	//     WHERE is_live = FALSE
+	//     ORDER BY id DESC
+	//     LIMIT 1
+	// );
+	GetReportSchema(ctx context.Context, isLive int64) (json.RawMessage, error)
 	GetSessionUserID(ctx context.Context, id string) (string, error)
 	GetSettings(ctx context.Context) ([]byte, error)
-	InsertReportSchemaRow(ctx context.Context, arg InsertReportSchemaRowParams) error
+	InsertDraftSchema(ctx context.Context, arg InsertDraftSchemaParams) error
 	ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, error)
 	MarkInviteUsed(ctx context.Context, id string) error
-	PromoteLatestDraft(ctx context.Context, updatedBy pgtype.Text) error
+	PromoteLatestDraft(ctx context.Context, updatedBy sql.NullString) error
 	UpdateAdminUserLastLogin(ctx context.Context, id string) error
 	UpdateAdminUserPassword(ctx context.Context, arg UpdateAdminUserPasswordParams) error
 	UpdateAdminUserRoleAndStatus(ctx context.Context, arg UpdateAdminUserRoleAndStatusParams) error
-	UpsertDraftSchema(ctx context.Context, arg UpsertDraftSchemaParams) error
 	UpsertSettings(ctx context.Context, data []byte) error
 }
 

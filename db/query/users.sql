@@ -3,22 +3,22 @@ SELECT COUNT(*) FROM admin_users;
 
 -- name: CreateAdminUser :exec
 INSERT INTO admin_users (id, username, email_hmac, email_encrypted, password_hash, role)
-VALUES ($1, $2, $3, $4, $5, $6);
+VALUES (?, ?, ?, ?, ?, ?);
 
 -- name: GetAdminUserByEmailHMAC :one
 SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at
 FROM admin_users
-WHERE email_hmac = $1;
+WHERE email_hmac = ?;
 
 -- name: GetAdminUserByUsername :one
 SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at
 FROM admin_users
-WHERE username = $1;
+WHERE username = ?;
 
 -- name: GetAdminUserByID :one
 SELECT id, username, role, status, created_at, last_login_at
 FROM admin_users
-WHERE id = $1;
+WHERE id = ?;
 
 -- name: ListAdminUsers :many
 SELECT id, username, role, status, created_at, last_login_at
@@ -26,23 +26,23 @@ FROM admin_users
 ORDER BY created_at;
 
 -- name: UpdateAdminUserRoleAndStatus :exec
-UPDATE admin_users SET role = $1, status = $2 WHERE id = $3;
+UPDATE admin_users SET role = ?, status = ? WHERE id = ?;
 
 -- name: UpdateAdminUserPassword :exec
-UPDATE admin_users SET password_hash = $1 WHERE id = $2;
+UPDATE admin_users SET password_hash = ? WHERE id = ?;
 
 -- name: UpdateAdminUserLastLogin :exec
-UPDATE admin_users SET last_login_at = NOW() WHERE id = $1;
+UPDATE admin_users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?;
 
 -- name: CountActiveSuperAdmins :one
 SELECT COUNT(*) FROM admin_users
 WHERE role = 'super_admin' AND status = 'active';
 
 -- name: GetAdminUserRoleByID :one
-SELECT role FROM admin_users WHERE id = $1;
+SELECT role FROM admin_users WHERE id = ?;
 
 -- name: DeleteAdminUser :exec
-DELETE FROM admin_users WHERE id = $1;
+DELETE FROM admin_users WHERE id = ?;
 
 -- name: GetAdminUserEmailEncryptedByID :one
-SELECT email_encrypted FROM admin_users WHERE id = $1;
+SELECT email_encrypted FROM admin_users WHERE id = ?;

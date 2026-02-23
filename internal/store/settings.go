@@ -2,14 +2,16 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"os"
 	"strconv"
 
-	dbpkg "github.com/firewatch/internal/db"
 	"github.com/firewatch/internal/crypto"
+	dbpkg "github.com/firewatch/internal/db"
 	"github.com/firewatch/internal/model"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type SettingsStore struct {
@@ -17,24 +19,27 @@ type SettingsStore struct {
 	crypter *crypto.Crypter
 }
 
-func NewSettingsStore(pool *pgxpool.Pool, crypter *crypto.Crypter) *SettingsStore {
-	return &SettingsStore{q: dbpkg.New(pool), crypter: crypter}
+func NewSettingsStore(db *sql.DB, crypter *crypto.Crypter) *SettingsStore {
+	return &SettingsStore{q: dbpkg.New(db), crypter: crypter}
 }
 
 // Load decrypts and returns the current settings. Seeds from env vars if no row exists.
 func (s *SettingsStore) Load(ctx context.Context) (*model.AppSettings, error) {
 	data, err := s.q.GetSettings(ctx)
-	if err != nil {
-		// No row — seed from env vars.
+	if errors.Is(err, sql.ErrNoRows) {
 		defaults := settingsFromEnv()
 		if saveErr := s.Save(ctx, defaults); saveErr != nil {
 			return nil, saveErr
 		}
 		return defaults, nil
+	} else if err != nil {
+		return nil, err
 	}
 
+	slog.Info("settings: loaded from database")
 	plaintext, err := s.crypter.Decrypt(data)
 	if err != nil {
+		slog.Error("settings: decryption failed", "err", err)
 		return nil, err
 	}
 	var settings model.AppSettings

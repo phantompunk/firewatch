@@ -14,20 +14,20 @@ SELECT data FROM settings WHERE id = 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) ([]byte, error) {
-	row := q.db.QueryRow(ctx, getSettings)
+	row := q.db.QueryRowContext(ctx, getSettings)
 	var data []byte
 	err := row.Scan(&data)
 	return data, err
 }
 
 const upsertSettings = `-- name: UpsertSettings :exec
-INSERT INTO settings (id, data, updated_at) VALUES (1, $1, NOW())
+INSERT INTO settings (id, data, updated_at) VALUES (1, ?, CURRENT_TIMESTAMP)
 ON CONFLICT (id) DO UPDATE
     SET data = EXCLUDED.data,
         updated_at = EXCLUDED.updated_at
 `
 
 func (q *Queries) UpsertSettings(ctx context.Context, data []byte) error {
-	_, err := q.db.Exec(ctx, upsertSettings, data)
+	_, err := q.db.ExecContext(ctx, upsertSettings, data)
 	return err
 }

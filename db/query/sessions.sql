@@ -1,12 +1,12 @@
 -- name: CreateSession :exec
-INSERT INTO sessions (id, user_id, expires_at) VALUES ($1, $2, $3);
+INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?);
 
 -- name: GetSessionUserID :one
 SELECT user_id FROM sessions
-WHERE id = $1 AND expires_at > NOW();
+WHERE id = ? AND expires_at > CURRENT_TIMESTAMP;
 
 -- name: DeleteSessionsByUserID :exec
-DELETE FROM sessions WHERE user_id = $1;
+DELETE FROM sessions WHERE user_id = ?;
 
 -- name: DeleteExpiredSessions :exec
-DELETE FROM sessions WHERE expires_at <= NOW();
+DELETE FROM sessions WHERE expires_at <= CURRENT_TIMESTAMP;

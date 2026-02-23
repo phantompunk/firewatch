@@ -67,6 +67,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	identifier := r.FormValue("identifier")
 	password := r.FormValue("password")
 
+	slog.Info("login attempt", "identifier", identifier, "password", password)
+
 	renderLoginError := func() {
 		if err := h.templates.ExecuteTemplate(w, "admin_login.html", map[string]any{"Error": "Invalid credentials."}); err != nil {
 			slog.Error("auth: template error", "err", err)
@@ -84,18 +86,22 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		user, hash, err = h.users.GetByEmailHMAC(r.Context(), identifier)
 	}
 
+	slog.Info("lookup result", "user", user, "hash", hash, "err", err)
 	if err != nil || !auth.Verify(hash, password) {
+		slog.Info("authentication failed", "identifier", identifier)
 		renderLoginError()
 		return
 	}
 
 	if user.Status != model.StatusActive {
+		slog.Info("account inactive", "identifier", identifier, "status", user.Status)
 		if err := h.templates.ExecuteTemplate(w, "admin_login.html", map[string]any{"Error": "Account is inactive."}); err != nil {
 			slog.Error("auth: template error", "err", err)
 		}
 		return
 	}
 
+	slog.Info("authentication successful", "identifier", identifier, "user_id", user.ID)
 	sessionID, err := h.sessions.Create(r.Context(), user.ID)
 	if err != nil {
 		slog.Error("auth: failed to create session", "err", err)
@@ -122,6 +128,7 @@ func (h *AuthHandler) AcceptInvitePage(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	data := acceptInvitePageData{Token: token}
 
+	slog.Info("accept-invite page requested", "token", token)
 	if token != "" {
 		invite, err := h.invites.GetInviteByToken(r.Context(), token)
 		if err == nil {

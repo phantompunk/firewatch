@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"log/slog"
 	"strings"
 )
 
@@ -64,6 +65,7 @@ func (c *Crypter) Decrypt(ciphertext []byte) ([]byte, error) {
 		return nil, err
 	}
 	if len(ciphertext) < gcm.NonceSize() {
+		slog.Info("crypto: ciphertext too short to decrypt", "key", ciphertext)
 		return nil, errors.New("crypto: ciphertext too short")
 	}
 	nonce, ciphertext := ciphertext[:gcm.NonceSize()], ciphertext[gcm.NonceSize():]

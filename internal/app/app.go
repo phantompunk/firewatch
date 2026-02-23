@@ -2,9 +2,11 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
+	_ "modernc.org/sqlite"
 	"net/http"
 	"os"
 	"time"
@@ -14,14 +16,13 @@ import (
 	"github.com/firewatch/internal/crypto"
 	"github.com/firewatch/internal/mailer"
 	"github.com/firewatch/internal/store"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 )
 
 type App struct {
 	config        *config.Config
 	logger        *slog.Logger
-	db            *pgxpool.Pool
+	db            *sql.DB
 	schemaStore   *store.SchemaStore
 	userStore     *store.UserStore
 	sessionStore  *store.SessionStore
@@ -44,7 +45,7 @@ func New() (*App, error) {
 	ctx := context.Background()
 	pool, err := openDB(ctx, cfg)
 	if err != nil {
-		logger.Error(err.Error())
+		return nil, fmt.Errorf("open database: %w", err)
 	}
 
 	schemaStore := store.NewSchemaStore(pool)
@@ -126,18 +127,21 @@ func (app App) Start(ctx context.Context) error {
 	return nil
 }
 
-func openDB(ctx context.Context, cfg *config.Config) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+func openDB(ctx context.Context, cfg *config.Config) (*sql.DB, error) {
+	db, err := sql.Open("sqlite", cfg.DatabaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("connecting to database: %w", err)
+		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
-	// Verify database connection
-	if err := pool.Ping(ctx); err != nil {
-		return nil, fmt.Errorf("pinging database: %w", err)
-	}
+	// One writer at a time — prevents SQLITE_BUSY under concurrent requests
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(0)
 
-	return pool, nil
+	if err := db.PingContext(ctx); err != nil {
+		return nil, fmt.Errorf("ping sqlite: %w", err)
+	}
+	return db, nil
 }
 
 func newLogger(cfg *config.Config) *slog.Logger {

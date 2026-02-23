@@ -3,32 +3,33 @@ package store
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
+	"log/slog"
 	"time"
 
 	dbpkg "github.com/firewatch/internal/db"
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const sessionTTL = 60 * time.Minute
+const sessionTTL = 4 * time.Hour
 
 type SessionStore struct {
 	q *dbpkg.Queries
 }
 
-func NewSessionStore(pool *pgxpool.Pool) *SessionStore {
-	return &SessionStore{q: dbpkg.New(pool)}
+func NewSessionStore(db *sql.DB) *SessionStore {
+	return &SessionStore{q: dbpkg.New(db)}
 }
 
 // Create inserts a new session and returns its ID.
 func (s *SessionStore) Create(ctx context.Context, userID string) (string, error) {
 	id := newToken()
-	expiresAt := pgtype.Timestamptz{Time: time.Now().Add(sessionTTL), Valid: true}
+	expiresAt := time.Now().Add(sessionTTL).UTC()
+	slog.Info("creating session", "session_id", id, "user_id", userID, "expires_at", expiresAt.Format(time.RFC3339))
 	err := s.q.CreateSession(ctx, dbpkg.CreateSessionParams{
 		ID:        id,
 		UserID:    userID,
-		ExpiresAt: expiresAt,
+		ExpiresAt: expiresAt.UTC().Format("2006-01-02 15:04:05"),
 	})
 	return id, err
 }
@@ -55,8 +56,3 @@ func newToken() string {
 	return hex.EncodeToString(b)
 }
 
-func newID() string {
-	b := make([]byte, 8)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
-}

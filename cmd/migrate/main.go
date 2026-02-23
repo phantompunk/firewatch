@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"os"
@@ -9,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "modernc.org/sqlite"
 )
 
 func main() {
@@ -21,17 +22,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	pool, err := pgxpool.New(ctx, dbURL)
+	db, err := sql.Open("sqlite", dbURL)
 	if err != nil {
 		slog.Error("failed to connect", "err", err)
 		os.Exit(1)
 	}
-	defer pool.Close()
+	db.SetMaxOpenConns(1)
+	defer db.Close()
 
-	if _, err := pool.Exec(ctx, `
+	if _, err := db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
-			version TEXT PRIMARY KEY,
-			applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			version    TEXT PRIMARY KEY,
+			applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 		)
 	`); err != nil {
 		slog.Error("failed to create migrations table", "err", err)
@@ -50,27 +52,27 @@ func main() {
 		version := strings.TrimSuffix(filepath.Base(f), ".sql")
 
 		var exists bool
-		_ = pool.QueryRow(ctx,
-			`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)`,
+		_ = db.QueryRowContext(ctx,
+			`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = ?)`,
 			version,
 		).Scan(&exists)
 		if exists {
 			continue
 		}
 
-		sql, err := os.ReadFile(f)
+		sqlBytes, err := os.ReadFile(f)
 		if err != nil {
 			slog.Error("failed to read migration", "file", f, "err", err)
 			os.Exit(1)
 		}
 
-		if _, err := pool.Exec(ctx, string(sql)); err != nil {
+		if _, err := db.ExecContext(ctx, string(sqlBytes)); err != nil {
 			slog.Error("migration failed", "version", version, "err", err)
 			os.Exit(1)
 		}
 
-		if _, err := pool.Exec(ctx,
-			`INSERT INTO schema_migrations (version) VALUES ($1)`, version,
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO schema_migrations (version) VALUES (?)`, version,
 		); err != nil {
 			slog.Error("failed to record migration", "version", version, "err", err)
 			os.Exit(1)

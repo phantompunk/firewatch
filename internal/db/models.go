@@ -5,64 +5,65 @@
 package db
 
 import (
-	"github.com/jackc/pgx/v5/pgtype"
+	"database/sql"
+	"encoding/json"
 )
 
 type AdminUser struct {
-	ID             string             `json:"id"`
-	PasswordHash   string             `json:"password_hash"`
-	Role           string             `json:"role"`
-	Status         string             `json:"status"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	LastLoginAt    pgtype.Timestamptz `json:"last_login_at"`
-	Username       string             `json:"username"`
-	EmailHmac      string             `json:"email_hmac"`
-	EmailEncrypted []byte             `json:"email_encrypted"`
+	ID             string         `json:"id"`
+	Username       string         `json:"username"`
+	EmailHmac      string         `json:"email_hmac"`
+	EmailEncrypted []byte         `json:"email_encrypted"`
+	PasswordHash   string         `json:"password_hash"`
+	Role           string         `json:"role"`
+	Status         string         `json:"status"`
+	CreatedAt      string         `json:"created_at"`
+	LastLoginAt    sql.NullString `json:"last_login_at"`
 }
 
 type AuditLog struct {
-	ID        int64              `json:"id"`
-	UserID    pgtype.Text        `json:"user_id"`
-	Action    string             `json:"action"`
-	Detail    pgtype.Text        `json:"detail"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID        int64          `json:"id"`
+	UserID    sql.NullString `json:"user_id"`
+	Action    string         `json:"action"`
+	Detail    sql.NullString `json:"detail"`
+	CreatedAt string         `json:"created_at"`
 }
 
 type InvitationToken struct {
-	ID             string             `json:"id"`
-	Role           string             `json:"role"`
-	TokenHash      string             `json:"token_hash"`
-	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
-	Used           bool               `json:"used"`
-	EmailEncrypted []byte             `json:"email_encrypted"`
+	ID             string `json:"id"`
+	EmailEncrypted []byte `json:"email_encrypted"`
+	Role           string `json:"role"`
+	TokenHash      string `json:"token_hash"`
+	ExpiresAt      string `json:"expires_at"`
+	Used           int64  `json:"used"`
 }
 
 type PasswordResetToken struct {
-	ID        string             `json:"id"`
-	UserID    string             `json:"user_id"`
-	TokenHash string             `json:"token_hash"`
-	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
-	Used      bool               `json:"used"`
+	ID        string `json:"id"`
+	UserID    string `json:"user_id"`
+	TokenHash string `json:"token_hash"`
+	ExpiresAt string `json:"expires_at"`
+	Used      int64  `json:"used"`
 }
 
 type ReportSchema struct {
-	ID        int64              `json:"id"`
-	Version   int32              `json:"version"`
-	IsLive    bool               `json:"is_live"`
-	Schema    []byte             `json:"schema"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-	UpdatedBy pgtype.Text        `json:"updated_by"`
+	ID        int64           `json:"id"`
+	Version   int64           `json:"version"`
+	IsLive    int64           `json:"is_live"`
+	Schema    json.RawMessage `json:"schema"`
+	UpdatedAt string          `json:"updated_at"`
+	UpdatedBy sql.NullString  `json:"updated_by"`
 }
 
 type Session struct {
-	ID        string             `json:"id"`
-	UserID    string             `json:"user_id"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	ID        string `json:"id"`
+	UserID    string `json:"user_id"`
+	CreatedAt string `json:"created_at"`
+	ExpiresAt string `json:"expires_at"`
 }
 
 type Setting struct {
-	ID        int32              `json:"id"`
-	Data      []byte             `json:"data"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	ID        int64  `json:"id"`
+	Data      []byte `json:"data"`
+	UpdatedAt string `json:"updated_at"`
 }
