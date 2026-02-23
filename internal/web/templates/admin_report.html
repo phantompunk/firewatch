@@ -35,6 +35,7 @@
         <span class="toggle-track"></span>
       </span>
     </label>
+    <button class="btn-danger-outline" @click="revert()">Revert to Published</button>
     <button @click="publish()">Publish Changes</button>
   </div>
 </div>
@@ -366,6 +367,14 @@ function formEditor(initialSchema) {
     async publish() {
       if (!confirm('Publish changes to the live form?')) return;
       await fetch('/api/admin/report/apply', { method: 'POST' });
+    },
+
+    async revert() {
+      if (!confirm('Discard all unpublished changes and revert to the current live version?')) return;
+      const r = await fetch('/api/admin/report/revert', { method: 'POST' });
+      if (r.ok) {
+        window.location.reload();
+      }
     },
   };
 }

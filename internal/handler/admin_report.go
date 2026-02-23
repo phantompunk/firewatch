@@ -20,6 +20,7 @@ type schemaDraftStore interface {
 	DraftSchema(ctx context.Context) (*model.ReportSchema, error)
 	SaveDraft(ctx context.Context, schema *model.ReportSchema, updatedBy string) error
 	PromoteDraft(ctx context.Context, updatedBy string) error
+	RevertDraftToLive(ctx context.Context, updatedBy string) error
 }
 
 // AdminReportHandler handles the admin form editor views and API.
@@ -86,6 +87,17 @@ func (h *AdminReportHandler) Update(w http.ResponseWriter, r *http.Request) {
 		h.serverErrorResponse(w, r, err)
 		return
 	}
+}
+
+// Revert resets the draft schema to match the current live schema.
+func (h *AdminReportHandler) Revert(w http.ResponseWriter, r *http.Request) {
+	userID := appmw.UserIDFromContext(r.Context())
+	if err := h.schemas.RevertDraftToLive(r.Context(), userID); err != nil {
+		slog.Error("admin_report: failed to revert draft", "err", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 // Apply promotes the draft schema to live.

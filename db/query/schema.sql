@@ -7,9 +7,12 @@ LIMIT 1;
 -- name: CountReportSchemas :one
 SELECT COUNT(*) FROM report_schema;
 
--- name: InsertReportSchema :exec
+-- name: UpsertDraftSchema :exec
+WITH removed AS (
+    DELETE FROM report_schema WHERE is_live = FALSE
+)
 INSERT INTO report_schema (version, is_live, schema, updated_at, updated_by)
-VALUES ($1, $2, $3, $4, $5);
+VALUES ($1, FALSE, $2, $3, $4);
 
 -- name: InsertReportSchemaRow :exec
 INSERT INTO report_schema (version, is_live, schema, updated_at)

@@ -47,6 +47,7 @@ func (app App) routes() http.Handler {
 		r.Put("/api/admin/report", adminReportHandler.Update)
 		// TODO: finish
 		r.Post("/api/admin/report/apply", adminReportHandler.Apply)
+		r.Post("/api/admin/report/revert", adminReportHandler.Revert)
 
 		settingsHandler := handler.NewSettingsHandler(app.logger, app.settingsStore, app.mailer, web.Templates)
 		r.Get("/admin/settings", settingsHandler.Page)

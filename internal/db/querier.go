@@ -26,8 +26,8 @@ type Querier interface {
 	GetReportSchema(ctx context.Context, isLive bool) ([]byte, error)
 	GetSessionUserID(ctx context.Context, id string) (string, error)
 	GetSettings(ctx context.Context) ([]byte, error)
-	InsertReportSchema(ctx context.Context, arg InsertReportSchemaParams) error
 	InsertReportSchemaRow(ctx context.Context, arg InsertReportSchemaRowParams) error
+	UpsertDraftSchema(ctx context.Context, arg UpsertDraftSchemaParams) error
 	ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, error)
 	PromoteLatestDraft(ctx context.Context, updatedBy pgtype.Text) error
 	UpdateAdminUserLastLogin(ctx context.Context, id string) error

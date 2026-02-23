@@ -52,9 +52,8 @@ func (s *SchemaStore) SaveDraft(ctx context.Context, schema *model.ReportSchema,
 	if err != nil {
 		return err
 	}
-	return s.q.InsertReportSchema(ctx, dbpkg.InsertReportSchemaParams{
+	return s.q.UpsertDraftSchema(ctx, dbpkg.UpsertDraftSchemaParams{
 		Version:   int32(schema.SchemaVersion),
-		IsLive:    false,
 		Schema:    raw,
 		UpdatedAt: pgtype.Timestamptz{Time: schema.UpdatedAt, Valid: true},
 		UpdatedBy: pgtype.Text{String: updatedBy, Valid: updatedBy != ""},
@@ -87,6 +86,16 @@ func (s *SchemaStore) PromoteDraft(ctx context.Context, updatedBy string) error 
 	live, err := s.load(ctx, true)
 	if err != nil {
 		return fmt.Errorf("copy live to draft after promote: %w", err)
+	}
+	return s.SaveDraft(ctx, live, updatedBy)
+}
+
+// RevertDraftToLive overwrites the current draft with the live schema,
+// effectively discarding any unpublished changes.
+func (s *SchemaStore) RevertDraftToLive(ctx context.Context, updatedBy string) error {
+	live, err := s.load(ctx, true)
+	if err != nil {
+		return fmt.Errorf("revert draft to live: %w", err)
 	}
 	return s.SaveDraft(ctx, live, updatedBy)
 }
