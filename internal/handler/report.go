@@ -71,6 +71,10 @@ func (h *ReportHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *ReportHandler) RedirectToLogin(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/admin/login", http.StatusFound)
+}
+
 // Submit processes an anonymous report submission.
 func (h *ReportHandler) Submit(w http.ResponseWriter, r *http.Request) {
 	schema, err := h.schemas.LiveSchema(r.Context())

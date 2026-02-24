@@ -24,6 +24,8 @@ func (app App) routes() http.Handler {
 	// Public report form
 	reportHandler := handler.NewReportHandler(app.logger, app.schemaStore, app.sessionStore, app.mailer, web.Templates)
 	r.Get("/", reportHandler.Form)
+	r.Get("/admin", reportHandler.RedirectToLogin)
+	r.Get("/login", reportHandler.RedirectToLogin)
 	r.Get("/api/report", reportHandler.Get)
 
 	// TODO: finish

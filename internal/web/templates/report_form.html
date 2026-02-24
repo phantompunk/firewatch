@@ -7,13 +7,6 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<nav class="public-nav">
-  {{if .IsAdmin}}
-  <a href="/admin/report" class="btn-login">Admin</a>
-  {{else}}
-  <a href="/admin/login" class="btn-login">Login</a>
-  {{end}}
-</nav>
 <main class="form-container">
   <header class="form-header">
     <h1>{{.Page.Title}}</h1>
