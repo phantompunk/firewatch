@@ -39,11 +39,12 @@ func DefaultSALUTESchema() ReportSchema {
 			SubmitButtonLabel: "Submit Report",
 		},
 		Fields: []Field{
-			{ID: "size", Type: "text", Order: 1, Label: "Size", Description: "Describe the number of people or scale of the incident.", Placeholder: "e.g., Approximately 10\u201315 individuals...", Required: true},
-			{ID: "location", Type: "text", Order: 3, Label: "Location", Description: "Where did this occur?", Placeholder: "e.g., Near the east gate...", Required: true},
-			{ID: "unit", Type: "text", Order: 4, Label: "Unit", Description: "Describe any uniforms, markings, or affiliations observed.", Placeholder: "e.g., No visible markings...", Required: false},
-			{ID: "time", Type: "text", Order: 5, Label: "Time", Description: "When did this occur?", Placeholder: "e.g., Around 14:30 today...", Required: true},
-			{ID: "equipment", Type: "text", Order: 6, Label: "Equipment", Description: "Describe any equipment, vehicles, or tools observed.", Placeholder: "e.g., Two unmarked vehicles...", Required: false},
+			{ID: "size", Type: "text", Order: 1, Label: "Size", Description: "Describe the number of people or scale of the incident.", Placeholder: "Approximately 10 individuals...", Required: true},
+			{ID: "activity", Type: "text", Order: 2, Label: "Activity", Description: "What was happening? Describe the activity or behavior observed.", Placeholder: "A group was seen...", Required: true},
+			{ID: "location", Type: "text", Order: 3, Label: "Location", Description: "Where did this occur?", Placeholder: "Near the east gate...", Required: true},
+			{ID: "unit", Type: "text", Order: 4, Label: "Unit", Description: "Describe any uniforms, markings, or affiliations observed.", Placeholder: "No visible markings...", Required: false},
+			{ID: "time", Type: "text", Order: 5, Label: "Time", Description: "When did this occur?", Placeholder: "Around 14:30 today...", Required: true},
+			{ID: "equipment", Type: "text", Order: 6, Label: "Equipment", Description: "Describe any equipment, vehicles, or tools observed.", Placeholder: "Two unmarked vehicles...", Required: false},
 		},
 		EmailTemplate: "New Community Report\n\nSize:\n{{size}}\n\nActivity:\n{{activity}}\n\nLocation:\n{{location}}\n\nUnit:\n{{unit}}\n\nTime:\n{{time}}\n\nEquipment:\n{{equipment}}\n\n---\nThis report was submitted anonymously.",
 	}
