@@ -1,10 +1,11 @@
 {{define "report_form.html"}}<!DOCTYPE html>
-<html lang="en">
+<html lang="{{.CurrentLang}}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{.Page.Title}}</title>
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 </head>
 <body>
 <main class="form-container">
@@ -12,6 +13,14 @@
     <h1>{{.Page.Title}}</h1>
     {{if .Page.Subtitle}}<p class="subtitle">{{.Page.Subtitle}}</p>{{end}}
   </header>
+
+  {{if gt (len .Languages) 1}}
+  <nav class="lang-toggle">
+    {{range .Languages}}
+    <a href="?lang={{.Code}}" class="lang-btn{{if eq .Code $.CurrentLang}} active{{end}}">{{.Name}}</a>
+    {{end}}
+  </nav>
+  {{end}}
 
   <form id="report-form">
     {{range .Fields}}
@@ -25,7 +34,7 @@
       <h2 class="field-label">{{.Label}}{{if .Required}} <span class="required">*</span>{{end}}</h2>
       {{if .Description}}<p class="field-desc">{{.Description}}</p>{{end}}
       {{if eq .Type "textarea"}}
-      <textarea id="{{.ID}}" name="fields[{{.ID}}]" placeholder="{{.Placeholder}}"{{if .Required}} required{{end}} rows="4"></textarea>
+      <textarea id="{{.ID}}" name="fields[{{.ID}}]" placeholder="{{.Placeholder}}"{{if .Required}} required{{end}} rows="3"></textarea>
       {{else if eq .Type "select"}}
       <select id="{{.ID}}" name="fields[{{.ID}}]"{{if .Required}} required{{end}}>
         <option value="">-- Select --</option>

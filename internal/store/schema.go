@@ -129,8 +129,8 @@ func (s *SchemaStore) SeedDefault(ctx context.Context) error {
 
 	// Insert draft row.
 	if err := s.q.InsertDraftSchema(ctx, dbpkg.InsertDraftSchemaParams{
-		Version: int64(schema.SchemaVersion),
-		SchemaData:  json.RawMessage(raw),
+		Version:    int64(schema.SchemaVersion),
+		SchemaData: json.RawMessage(raw),
 		UpdatedBy:  sql.NullString{String: "admin", Valid: true},
 	}); err != nil {
 		return err
@@ -142,8 +142,8 @@ func (s *SchemaStore) SeedDefault(ctx context.Context) error {
 	}
 
 	return s.q.InsertDraftSchema(ctx, dbpkg.InsertDraftSchemaParams{
-		Version: int64(schema.SchemaVersion),
-		SchemaData:  json.RawMessage(raw),
+		Version:    int64(schema.SchemaVersion),
+		SchemaData: json.RawMessage(raw),
 		UpdatedBy:  sql.NullString{String: "admin", Valid: true},
 	})
 }

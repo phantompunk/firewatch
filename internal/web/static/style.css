@@ -21,26 +21,26 @@ body {
 
 /* Forms */
 .field-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: 1.5rem;
+  padding: 1rem;
   background: var(--color-surface);
 }
 .field-label {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
-  padding-bottom: 0.65rem;
-  margin-bottom: 0.65rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
   border-bottom: 1px solid var(--color-border);
 }
 .field-group input, .field-group select, .field-group textarea {
-  width: 100%; padding: 0.65rem 1rem;
+  width: 100%; padding: 0.55rem 0.85rem;
   border: 1px solid var(--color-border); border-radius: var(--radius);
-  font: inherit; font-size: 1rem; background: var(--color-bg);
+  font: inherit; font-size: 0.95rem; background: var(--color-bg);
 }
 .field-group textarea { resize: vertical; }
-.field-desc { font-size: 1rem; color: var(--color-muted); margin-bottom: 0.75rem; }
+.field-desc { font-size: 0.9rem; color: var(--color-muted); margin-bottom: 0.5rem; }
 .required { color: var(--color-danger); }
 .error { color: var(--color-danger); padding: 0.75rem; background: #fff0f0; border-radius: var(--radius); margin-bottom: var(--spacing); }
 
@@ -70,10 +70,26 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-login:hover { color: var(--color-primary); border-color: var(--color-primary); }
 
 /* Public form */
-.form-container { max-width: 800px; margin: 3rem auto; padding: 0 2rem; font-size: 1.05rem; }
-.form-header { text-align: center; margin-bottom: 2.5rem; }
-.form-header h1 { font-size: 2rem; margin-bottom: 0.6rem; }
-.subtitle { font-size: 1.05rem; color: var(--color-muted); }
+.form-container { max-width: 680px; margin: 2rem auto; padding: 0 1.5rem; font-size: 1rem; }
+.form-header { text-align: center; margin-bottom: 1.5rem; }
+.form-header h1 { font-size: 1.75rem; margin-bottom: 0.4rem; }
+.subtitle { font-size: 0.95rem; color: var(--color-muted); }
+
+/* Public form submit button */
+.form-container button[type="submit"] { padding: 0.6rem 2rem; font-size: 1rem; }
+
+@media (max-width: 600px) {
+  .form-container { margin: 0 auto; padding: 0.75rem 0.75rem 2rem; }
+  .form-header { margin-bottom: 1rem; }
+  .form-header h1 { font-size: 1.35rem; }
+  .field-group { padding: 0.75rem; margin-bottom: 0.5rem; }
+  .field-label { font-size: 0.9rem; padding-bottom: 0.4rem; margin-bottom: 0.4rem; }
+  .field-desc { font-size: 0.82rem; margin-bottom: 0.4rem; }
+  .field-group input, .field-group select { padding: 0.5rem 0.75rem; }
+  .field-group textarea { min-height: 72px; max-height: 120px; }
+  .form-container button[type="submit"] { width: 100%; padding: 0.75rem; }
+  .accordion-field summary { font-size: 1rem; }
+}
 
 /* Login */
 .login-container { max-width: 400px; margin: 8rem auto; padding: 2rem; background: var(--color-surface); border-radius: var(--radius); box-shadow: 0 2px 8px rgba(0,0,0,.1); }
@@ -957,4 +973,54 @@ section h2 { margin-bottom: 1rem; }
   line-height: 1.7;
   color: var(--color-muted);
   max-width: 72ch;
+}
+
+/* Language toggle — public form */
+.lang-toggle {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+.lang-btn {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: 0.82rem;
+  text-decoration: none;
+  color: var(--color-muted);
+}
+.lang-btn.active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+.lang-btn:hover:not(.active) {
+  border-color: var(--color-text);
+  color: var(--color-text);
+}
+
+/* Language tab strip — admin inspector */
+.lang-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.lang-tab {
+  padding: 0.2rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.lang-tab.active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
 }

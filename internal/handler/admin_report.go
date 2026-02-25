@@ -13,8 +13,9 @@ import (
 
 type adminReportPageData struct {
 	model.ReportSchema
-	SchemaJSON   template.JS
-	IsSuperAdmin bool
+	SchemaJSON             template.JS
+	SupportedLanguagesJSON template.JS
+	IsSuperAdmin           bool
 }
 
 type schemaDraftStore interface {
@@ -44,10 +45,12 @@ func (h *AdminReportHandler) Page(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonBytes, _ := json.Marshal(schema)
+	langBytes, _ := json.Marshal(model.SupportedLanguages)
 	data := adminReportPageData{
-		ReportSchema: *schema,
-		SchemaJSON:   template.JS(jsonBytes),
-		IsSuperAdmin: appmw.IsSuperAdmin(r.Context()),
+		ReportSchema:           *schema,
+		SchemaJSON:             template.JS(jsonBytes),
+		SupportedLanguagesJSON: template.JS(langBytes),
+		IsSuperAdmin:           appmw.IsSuperAdmin(r.Context()),
 	}
 	if err := h.templates.ExecuteTemplate(w, "admin_report.html", data); err != nil {
 		slog.Error("admin_report: template error", "err", err)
@@ -79,6 +82,10 @@ func (h *AdminReportHandler) Update(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
+
+	// Always store as v2 so the migration check in load() never fires
+	// on a schema that was saved by this handler.
+	schema.SchemaVersion = 2
 
 	if err := h.schemas.SaveDraft(r.Context(), schema, user); err != nil {
 		h.serverErrorResponse(w, r, err)

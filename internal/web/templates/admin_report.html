@@ -64,14 +64,16 @@
            :class="{ selected: isPageSelected && !preview }"
            @click="!preview && selectItem('__page__')">
         <header class="form-header" style="margin-bottom:0">
-          <h1 x-text="schema.page.title"></h1>
-          <p class="subtitle" x-show="schema.page.subtitle" x-text="schema.page.subtitle"></p>
+          <h1 x-text="schema.page.i18n[editingLang]?.title || schema.page.i18n['en']?.title || ''"></h1>
+          <p class="subtitle"
+             x-show="schema.page.i18n[editingLang]?.subtitle || schema.page.i18n['en']?.subtitle"
+             x-text="schema.page.i18n[editingLang]?.subtitle || schema.page.i18n['en']?.subtitle || ''"></p>
         </header>
       </div>
 
       <!-- Field items (SortableJS target) -->
       <div id="canvas-fields">
-        <template x-for="field in schema.fields" :key="field.id">
+        <template x-for="field in sortedFields" :key="field.id">
           <div class="canvas-section canvas-field"
                :class="{ selected: selectedId === field.id && !preview }"
                :data-field-id="field.id"
@@ -81,19 +83,25 @@
               <template x-if="field.type !== 'accordion'">
                 <div>
                   <h2 class="field-label">
-                    <span x-text="field.label"></span><template x-if="field.required"><span class="required"> *</span></template>
+                    <span x-text="field.i18n[editingLang]?.label || field.i18n['en']?.label || ''"></span>
+                    <template x-if="field.required"><span class="required"> *</span></template>
                   </h2>
-                  <p class="field-desc" x-show="field.description" x-text="field.description"></p>
-                  <input type="text" :disabled="!preview" :placeholder="field.placeholder"
+                  <p class="field-desc"
+                     x-show="field.i18n[editingLang]?.description || field.i18n['en']?.description"
+                     x-text="field.i18n[editingLang]?.description || field.i18n['en']?.description || ''"></p>
+                  <input type="text" :disabled="!preview"
+                         :placeholder="field.i18n[editingLang]?.placeholder || field.i18n['en']?.placeholder || ''"
                          x-show="field.type === 'text'">
-                  <textarea :disabled="!preview" :placeholder="field.placeholder" rows="3"
+                  <textarea :disabled="!preview"
+                            :placeholder="field.i18n[editingLang]?.placeholder || field.i18n['en']?.placeholder || ''"
+                            rows="3"
                             x-show="field.type === 'textarea'"></textarea>
                 </div>
               </template>
               <template x-if="field.type === 'accordion'">
                 <details class="field-group canvas-accordion">
-                  <summary x-text="field.label || 'Accordion Title'"></summary>
-                  <p x-text="field.description || 'No content yet.'"></p>
+                  <summary x-text="field.i18n[editingLang]?.label || field.i18n['en']?.label || 'Accordion Title'"></summary>
+                  <p x-text="field.i18n[editingLang]?.description || field.i18n['en']?.description || 'No content yet.'"></p>
                 </details>
               </template>
             </section>
@@ -105,7 +113,8 @@
         </template>
       </div>
 
-      <button :disabled="!preview" x-text="schema.page.submitButtonLabel"
+      <button :disabled="!preview"
+              x-text="schema.page.i18n[editingLang]?.submitButtonLabel || schema.page.i18n['en']?.submitButtonLabel || 'Submit'"
               class="canvas-submit-btn"></button>
 
     </div>
@@ -118,27 +127,56 @@
       <p>Select a field or the page header to edit its properties.</p>
     </div>
 
+    <!-- Language tab strip (shown when more than one language is enabled) -->
+    <div class="lang-tabs" x-show="schema.languages && schema.languages.length > 1 && selectedId !== null">
+      <template x-for="l in enabledLangs" :key="l.Code">
+        <button class="lang-tab" :class="{ active: editingLang === l.Code }"
+                @click="editingLang = l.Code" x-text="l.Code.toUpperCase()"></button>
+      </template>
+    </div>
+
     <!-- Page Settings inspector -->
     <div class="inspector-content" x-show="isPageSelected">
       <h3>Page Settings</h3>
       <div class="inspector-field">
         <label>Title</label>
-        <input type="text" x-model="schema.page.title">
+        <input type="text" x-model="schema.page.i18n[editingLang].title">
       </div>
       <div class="inspector-field">
         <label>Subtitle</label>
-        <input type="text" x-model="schema.page.subtitle">
+        <input type="text" x-model="schema.page.i18n[editingLang].subtitle">
       </div>
       <div class="inspector-field">
         <label>Submit Button Label</label>
-        <input type="text" x-model="schema.page.submitButtonLabel">
+        <input type="text" x-model="schema.page.i18n[editingLang].submitButtonLabel">
+      </div>
+
+      <!-- Languages enable section -->
+      <div class="inspector-field">
+        <label>Languages</label>
+        <template x-for="l in SUPPORTED_LANGUAGES" :key="l.Code">
+          <label class="toggle-label" style="margin-bottom:0.5rem">
+            <span x-text="l.Name"></span>
+            <template x-if="l.Code !== 'en'">
+              <span class="toggle-switch">
+                <input type="checkbox"
+                       :checked="schema.languages && schema.languages.includes(l.Code)"
+                       @change="toggleLanguage(l.Code, $event.target.checked)">
+                <span class="toggle-track"></span>
+              </span>
+            </template>
+            <template x-if="l.Code === 'en'">
+              <span style="font-size:0.8rem;color:var(--color-muted)">Always on</span>
+            </template>
+          </label>
+        </template>
       </div>
     </div>
 
     <!-- Field inspector -->
     <template x-if="selectedField !== null">
       <div class="inspector-content">
-        <h3 x-text="'Field: ' + selectedField.label"></h3>
+        <h3 x-text="'Field: ' + (selectedField.i18n[editingLang]?.label || selectedField.i18n['en']?.label || '')"></h3>
         <div class="inspector-field">
           <label>ID</label>
           <input type="text" :value="selectedField.id" @change="selectedField.id = $event.target.value">
@@ -150,16 +188,16 @@
         </div>
         <div class="inspector-field">
           <label>Label</label>
-          <input type="text" x-model="selectedField.label">
+          <input type="text" x-model="selectedField.i18n[editingLang].label">
         </div>
         <div class="inspector-field">
           <label x-text="selectedField.type === 'accordion' ? 'Content' : 'Description'"></label>
-          <textarea x-model="selectedField.description"
+          <textarea x-model="selectedField.i18n[editingLang].description"
                     :rows="selectedField.type === 'accordion' ? 6 : 3"></textarea>
         </div>
         <div class="inspector-field" x-show="selectedField.type !== 'accordion'">
           <label>Placeholder</label>
-          <input type="text" x-model="selectedField.placeholder">
+          <input type="text" x-model="selectedField.i18n[editingLang].placeholder">
         </div>
         <div class="inspector-field" x-show="selectedField.type !== 'accordion'">
           <label class="toggle-label">
@@ -175,7 +213,7 @@
                   :disabled="selectedIndex === 0"
                   title="Move up">&#8593; Move up</button>
           <button class="order-btn" @click="moveDown()"
-                  :disabled="selectedIndex === schema.fields.length - 1"
+                  :disabled="selectedIndex === sortedFields.length - 1"
                   title="Move down">&#8595; Move down</button>
         </div>
         <div class="inspector-delete-row">
@@ -194,7 +232,7 @@
     <template x-for="field in schema.fields.filter(f => f.type !== 'accordion')" :key="field.id">
       <div class="palette-item palette-item--token" @click="insertToken(field.id)"
            :title="'{' + '{' + field.id + '}' + '}'">
-        <span x-text="field.label"></span>
+        <span x-text="field.i18n[editingLang]?.label || field.i18n['en']?.label || field.id"></span>
       </div>
     </template>
     <div x-show="schema.fields.filter(f => f.type !== 'accordion').length === 0" class="field-palette-empty">No insertable fields.</div>
@@ -203,8 +241,15 @@
   <div class="email-editor-panel">
     <div class="email-panel-header">
       <h2>Template</h2>
+      <!-- Language tab strip for email -->
+      <div class="lang-tabs" x-show="schema.languages && schema.languages.length > 1" style="margin-top:0.5rem;border-bottom:none;padding-bottom:0;margin-bottom:0">
+        <template x-for="l in enabledLangs" :key="l.Code">
+          <button class="lang-tab" :class="{ active: editingLang === l.Code }"
+                  @click="editingLang = l.Code" x-text="l.Code.toUpperCase()"></button>
+        </template>
+      </div>
     </div>
-    <textarea id="email-template" class="email-textarea" x-model="schema.emailTemplate" spellcheck="false"></textarea>
+    <textarea id="email-template" class="email-textarea" x-model="schema.emailTemplates[editingLang]" spellcheck="false"></textarea>
   </div>
   <div class="email-preview-panel">
     <div class="email-panel-header">
@@ -218,14 +263,32 @@
 </div><!-- admin-shell -->
 
 <script>
+const SUPPORTED_LANGUAGES = {{.SupportedLanguagesJSON}};
+
 function formEditor(initialSchema) {
   return {
     schema: initialSchema,
+    editingLang: (initialSchema.languages && initialSchema.languages[0]) || 'en',
     selectedId: '__page__',
     saveStatus: 'saved',
     _saveTimer: null,
     activeTab: 'form',
     preview: false,
+
+    // Fields sorted by per-language display order for the current editing language.
+    get sortedFields() {
+      return [...this.schema.fields].sort((a, b) => {
+        const oa = (a.i18n && a.i18n[this.editingLang] && a.i18n[this.editingLang].order) || a.order || 0;
+        const ob = (b.i18n && b.i18n[this.editingLang] && b.i18n[this.editingLang].order) || b.order || 0;
+        return oa - ob;
+      });
+    },
+
+    // Enabled languages with names resolved from SUPPORTED_LANGUAGES.
+    get enabledLangs() {
+      if (!this.schema.languages) return [];
+      return SUPPORTED_LANGUAGES.filter(l => this.schema.languages.includes(l.Code));
+    },
 
     get selectedField() {
       if (!this.selectedId || this.selectedId === '__page__') return null;
@@ -233,12 +296,52 @@ function formEditor(initialSchema) {
     },
 
     get selectedIndex() {
-      return this.schema.fields.findIndex(f => f.id === this.selectedId);
+      return this.sortedFields.findIndex(f => f.id === this.selectedId);
     },
 
     get isPageSelected() { return this.selectedId === '__page__'; },
 
+    // _seedLang ensures every enabled language has a complete i18n entry on
+    // the page meta, emailTemplates, and every field. Safe to call repeatedly.
+    // Each missing or empty property is pre-populated from the default language.
+    _seedLang(code) {
+      const def = this.schema.languages[0] || 'en';
+
+      // Page meta — fill each property individually.
+      const defPage = this.schema.page.i18n[def] || {};
+      if (!this.schema.page.i18n[code]) this.schema.page.i18n[code] = {};
+      const pageLoc = this.schema.page.i18n[code];
+      if (!pageLoc.title)             pageLoc.title             = defPage.title             || '';
+      if (!pageLoc.subtitle)          pageLoc.subtitle          = defPage.subtitle          || '';
+      if (!pageLoc.submitButtonLabel) pageLoc.submitButtonLabel = defPage.submitButtonLabel || '';
+
+      // Email template.
+      if (!this.schema.emailTemplates[code]) {
+        this.schema.emailTemplates[code] = this.schema.emailTemplates[def] || '';
+      }
+
+      // Fields — fill each property individually.
+      this.schema.fields.forEach(f => {
+        const defLocale = f.i18n[def] || {};
+        if (!f.i18n[code]) f.i18n[code] = {};
+        const loc = f.i18n[code];
+        if (!loc.label)       loc.label       = defLocale.label       || '';
+        if (!loc.description) loc.description = defLocale.description || '';
+        if (!loc.placeholder) loc.placeholder = defLocale.placeholder || '';
+        if (!loc.order)       loc.order       = f.order || 0;
+      });
+    },
+
     init() {
+      // Ensure top-level containers exist.
+      if (!this.schema.languages || !this.schema.languages.length) this.schema.languages = ['en'];
+      if (!this.schema.page.i18n) this.schema.page.i18n = {};
+      if (!this.schema.emailTemplates) this.schema.emailTemplates = {};
+      this.schema.fields.forEach(f => { if (!f.i18n) f.i18n = {}; });
+
+      // Seed every enabled language so inspector bindings never see undefined.
+      this.schema.languages.forEach(lang => this._seedLang(lang));
+
       Sortable.create(document.getElementById('field-palette'), {
         group: { name: 'canvas', pull: 'clone', put: false },
         sort: false,
@@ -256,17 +359,27 @@ function formEditor(initialSchema) {
           evt.item.remove();
           const f = this._makeField(type);
           const fields = [...this.schema.fields];
+          // Assign base order so all language fallbacks work correctly.
+          f.order = idx + 1;
           fields.splice(idx, 0, f);
           this.schema.fields = fields.map((field, i) => ({ ...field, order: i + 1 }));
           this.$nextTick(() => this.selectItem(f.id));
         },
         onEnd: () => {
+          // Update per-language order based on the new DOM order.
           const ids = [...document.querySelectorAll('#canvas-fields [data-field-id]')]
             .map(el => el.dataset.fieldId);
-          this.schema.fields = ids.map((id, i) => ({
-            ...this.schema.fields.find(f => f.id === id),
-            order: i + 1,
-          }));
+          ids.forEach((id, idx) => {
+            const f = this.schema.fields.find(f => f.id === id);
+            if (f) {
+              if (!f.i18n[this.editingLang]) {
+                f.i18n[this.editingLang] = { label: '', description: '', placeholder: '', order: idx + 1 };
+              } else {
+                f.i18n[this.editingLang].order = idx + 1;
+              }
+            }
+          });
+          this.markDirty();
         },
       });
 
@@ -280,7 +393,29 @@ function formEditor(initialSchema) {
         accordion: { label: 'New Section',    placeholder: ''            },
       };
       const d = defaults[type] || defaults.text;
-      return { id: 'field_' + Date.now(), label: d.label, description: '', placeholder: d.placeholder, required: false, type, order: 0 };
+      const i18n = {};
+      const langs = this.schema.languages || ['en'];
+      langs.forEach(lang => {
+        i18n[lang] = { label: d.label, description: '', placeholder: d.placeholder, order: 0 };
+      });
+      return { id: 'field_' + Date.now(), required: false, type, order: 0, i18n };
+    },
+
+    toggleLanguage(code, enabled) {
+      if (code === 'en') return; // English is always on.
+      if (enabled) {
+        if (!this.schema.languages.includes(code)) {
+          this.schema.languages.push(code);
+        }
+        // Seed all i18n entries for the new language before switching to it.
+        this._seedLang(code);
+        this.editingLang = code;
+      } else {
+        this.schema.languages = this.schema.languages.filter(l => l !== code);
+        if (this.editingLang === code) {
+          this.editingLang = 'en';
+        }
+      }
     },
 
     markDirty() {
@@ -297,11 +432,29 @@ function formEditor(initialSchema) {
     selectItem(id) { this.selectedId = this.selectedId === id ? '__page__' : id; },
 
     moveUp() {
-      const i = this.selectedIndex;
-      if (i <= 0) return;
-      const fields = [...this.schema.fields];
-      [fields[i - 1], fields[i]] = [fields[i], fields[i - 1]];
-      this.schema.fields = fields.map((f, idx) => ({ ...f, order: idx + 1 }));
+      const sorted = this.sortedFields;
+      const idx = sorted.findIndex(f => f.id === this.selectedId);
+      if (idx <= 0) return;
+      const curr = sorted[idx];
+      const prev = sorted[idx - 1];
+      this._seedLang(this.editingLang);
+      const currOrder = curr.i18n[this.editingLang].order || curr.order || idx + 1;
+      const prevOrder = prev.i18n[this.editingLang].order || prev.order || idx;
+      curr.i18n[this.editingLang].order = prevOrder;
+      prev.i18n[this.editingLang].order = currOrder;
+    },
+
+    moveDown() {
+      const sorted = this.sortedFields;
+      const idx = sorted.findIndex(f => f.id === this.selectedId);
+      if (idx < 0 || idx >= sorted.length - 1) return;
+      const curr = sorted[idx];
+      const next = sorted[idx + 1];
+      this._seedLang(this.editingLang);
+      const currOrder = curr.i18n[this.editingLang].order || curr.order || idx + 1;
+      const nextOrder = next.i18n[this.editingLang].order || next.order || idx + 2;
+      curr.i18n[this.editingLang].order = nextOrder;
+      next.i18n[this.editingLang].order = currOrder;
     },
 
     insertToken(fieldId) {
@@ -309,8 +462,8 @@ function formEditor(initialSchema) {
       const el = document.getElementById('email-template');
       const start = el.selectionStart;
       const end = el.selectionEnd;
-      this.schema.emailTemplate =
-        this.schema.emailTemplate.slice(0, start) + token + this.schema.emailTemplate.slice(end);
+      const tpl = this.schema.emailTemplates[this.editingLang] || '';
+      this.schema.emailTemplates[this.editingLang] = tpl.slice(0, start) + token + tpl.slice(end);
       this.$nextTick(() => {
         el.focus();
         el.setSelectionRange(start + token.length, start + token.length);
@@ -318,24 +471,21 @@ function formEditor(initialSchema) {
     },
 
     emailPreview() {
-      return this.schema.fields.reduce((tpl, field) => {
-        return tpl.replaceAll('{' + '{' + field.id + '}' + '}', field.placeholder || field.label);
-      }, this.schema.emailTemplate);
+      const tpl = this.schema.emailTemplates[this.editingLang] || '';
+      return this.schema.fields.reduce((t, field) => {
+        const locale = (field.i18n && (field.i18n[this.editingLang] || field.i18n['en'])) || {};
+        return t.replaceAll('{' + '{' + field.id + '}' + '}', locale.placeholder || locale.label || '');
+      }, tpl);
     },
 
     addField(type) {
       const f = this._makeField(type);
       f.order = this.schema.fields.length + 1;
+      this.schema.languages.forEach(lang => {
+        if (f.i18n[lang]) f.i18n[lang].order = f.order;
+      });
       this.schema.fields.push(f);
       this.$nextTick(() => this.selectItem(f.id));
-    },
-
-    moveDown() {
-      const i = this.selectedIndex;
-      if (i < 0 || i >= this.schema.fields.length - 1) return;
-      const fields = [...this.schema.fields];
-      [fields[i], fields[i + 1]] = [fields[i + 1], fields[i]];
-      this.schema.fields = fields.map((f, idx) => ({ ...f, order: idx + 1 }));
     },
 
     deleteField(id) {
@@ -352,9 +502,11 @@ function formEditor(initialSchema) {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            schemaVersion: this.schema.schemaVersion,
+            languages: this.schema.languages,
             page: this.schema.page,
             fields: this.schema.fields,
-            emailTemplate: this.schema.emailTemplate,
+            emailTemplates: this.schema.emailTemplates,
           }),
         });
         if (!res.ok) throw new Error('save failed');
