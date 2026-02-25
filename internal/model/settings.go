@@ -12,4 +12,10 @@ type AppSettings struct {
 	ReportRetentionPolicy string `json:"reportRetentionPolicy"`
 	MaintenanceMode       bool   `json:"maintenanceMode"`
 	PGPKey                string `json:"pgpKey"`
+
+	// Verification state — set automatically on save and at startup.
+	SMTPVerified bool   `json:"smtpVerified"`
+	SMTPError    string `json:"smtpError"`
+	PGPVerified  bool   `json:"pgpVerified"`
+	PGPError     string `json:"pgpError"`
 }

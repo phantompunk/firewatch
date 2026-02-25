@@ -76,6 +76,28 @@ func New() (*App, error) {
 	s, _ := settingsStore.Load(ctx)
 	m := mailer.New(mailer.NewConfigFromSettings(s))
 
+	// Verify SMTP and PGP at startup so the flags reflect current reality.
+	tmp := mailer.New(mailer.NewConfigFromSettings(s))
+	if pingErr := tmp.Ping(); pingErr != nil {
+		s.SMTPVerified = false
+		s.SMTPError = pingErr.Error()
+		slog.Warn("startup: SMTP verification failed — maintenance mode forced on", "err", pingErr)
+	} else {
+		s.SMTPVerified = true
+		s.SMTPError = ""
+	}
+	if encErr := tmp.CanEncrypt(); encErr != nil {
+		s.PGPVerified = false
+		s.PGPError = encErr.Error()
+		slog.Warn("startup: PGP verification failed — maintenance mode forced on", "err", encErr)
+	} else {
+		s.PGPVerified = true
+		s.PGPError = ""
+	}
+	if saveErr := settingsStore.Save(ctx, s); saveErr != nil {
+		slog.Error("startup: failed to persist verification state", "err", saveErr)
+	}
+
 	return &App{
 		config:        cfg,
 		logger:        logger,

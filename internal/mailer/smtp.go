@@ -1,17 +1,22 @@
 package mailer
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net/smtp"
 	"strings"
 	"sync"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	"github.com/firewatch/internal/model"
 )
 
 type ReportSender interface {
 	SendReport(body string) error
+	CanEncrypt() error
 }
 
 type InviteSender interface {
@@ -39,14 +44,14 @@ type Attachments struct {
 }
 
 type Config struct {
-	Host        string
-	Port        int
-	User        string
-	Pass        string
-	FromName    string
-	FromAddress string
-	To          []string
-	PGPKey      string
+	Host         string
+	Port         int
+	User         string
+	Pass         string
+	FromName     string
+	FromAddress  string
+	To           []string
+	PGPPublicKey string
 }
 
 type Mailer struct {
@@ -89,6 +94,84 @@ func (m *Mailer) send(msg Message) error {
 	return smtp.SendMail(addr, auth, cfg.FromAddress, msg.To, []byte(m.formatMessage(msg)))
 }
 
+func (m *Mailer) sendEncrypted(msg Message) error {
+	m.mu.Lock()
+	cfg := m.cfg
+	m.mu.Unlock()
+
+	if cfg.PGPPublicKey == "" {
+		return fmt.Errorf("PGP public key is not configured")
+	}
+
+	// Encrypt the message body using the PGP public key
+	encrypted, err := encryptBody(cfg.PGPPublicKey, msg.Body)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt message body: %w", err)
+	}
+
+	msg.Body = encrypted
+	msg.IsHTML = false // Encrypted content should be sent as plain text
+
+	return m.sendFn(msg)
+}
+
+func (m *Mailer) CanEncrypt() error {
+	m.mu.RLock()
+	key := m.cfg.PGPPublicKey
+	m.mu.RUnlock()
+
+	if key == "" {
+		return fmt.Errorf("no PGP public key configured")
+	}
+
+	keyring, err := openpgp.ReadArmoredKeyRing(strings.NewReader(key))
+	if err !=nil {
+		return fmt.Errorf("invalid PGP public key: %w", err)
+	}
+
+	if len(keyring) == 0 {
+		return fmt.Errorf("PGP key parsed but no keys found in keyring")
+	}
+
+	return nil
+}
+
+func encryptBody(publicKey, plainText string) (string, error) {
+	keyring, err := openpgp.ReadArmoredKeyRing(strings.NewReader(publicKey))
+	if err != nil {
+		return "", fmt.Errorf("pgp: read recipient key: %w", err)
+	}
+	if len(keyring) == 0 {
+		return "", fmt.Errorf("pgp: no keys found in keyring")
+	}
+
+	var buf bytes.Buffer
+
+	armorWriter, err := armor.Encode(&buf, "PGP MESSAGE", nil)
+	if err != nil {
+		return "", fmt.Errorf("pgp: create armor writer: %w", err)
+	}
+
+	plainTextWriter, err := openpgp.Encrypt(armorWriter, keyring, nil, nil, nil)
+	if err != nil {
+		return "", fmt.Errorf("pgp: encrypt: %w", err)
+	}
+
+	if _, err := io.WriteString(plainTextWriter, plainText); err != nil {
+		return "", fmt.Errorf("pgp write plaintext: %w", err)
+	}
+
+	if err := plainTextWriter.Close(); err != nil {
+		return "", fmt.Errorf("pgp: close plaintext writer: %w", err)
+	}
+
+	if err := armorWriter.Close(); err != nil {
+		return "", fmt.Errorf("pgp: close armor writer: %w", err)
+	}
+
+	return buf.String(), nil
+}
+
 // SendInvite emails an invitation link directly to the invitee.
 func (m *Mailer) SendInvite(toEmail, inviteURL string) error {
 	return m.sendFn(Message{
@@ -101,7 +184,6 @@ func (m *Mailer) SendInvite(toEmail, inviteURL string) error {
 		IsHTML: false,
 	})
 }
-
 
 // Ping attempts to connect and authenticate with the SMTP server to verify configuration.
 func (m *Mailer) Ping() error {
@@ -133,7 +215,7 @@ func (m *Mailer) Ping() error {
 
 // SendReport sends a report email to the configured destination(s).
 func (m *Mailer) SendReport(body string) error {
-	return m.sendFn(Message{
+	return m.sendEncrypted(Message{
 		To:      m.cfg.To,
 		Subject: "Report from Firewatch",
 		Body:    body,
@@ -144,12 +226,13 @@ func (m *Mailer) SendReport(body string) error {
 // NewConfigFromSettings creates a mailer Config from application settings.
 func NewConfigFromSettings(s *model.AppSettings) *Config {
 	return &Config{
-		Host:        s.SMTPHost,
-		Port:        s.SMTPPort,
-		User:        s.SMTPUser,
-		Pass:        s.SMTPPass,
-		FromName:    s.SMTPFromName,
-		FromAddress: s.DestinationEmail,
-		To:          []string{s.DestinationEmail},
+		Host:         s.SMTPHost,
+		Port:         s.SMTPPort,
+		User:         s.SMTPUser,
+		Pass:         s.SMTPPass,
+		FromName:     s.SMTPFromName,
+		FromAddress:  s.DestinationEmail,
+		To:           []string{s.DestinationEmail},
+		PGPPublicKey: s.PGPKey,
 	}
 }

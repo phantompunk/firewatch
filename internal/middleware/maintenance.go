@@ -20,7 +20,7 @@ func MaintenanceMode(settings maintenanceSettingsLoader, tmpl *template.Template
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			s, err := settings.Load(r.Context())
-			if err != nil || s.MaintenanceMode {
+			if err != nil || s.MaintenanceMode || !s.SMTPVerified || !s.PGPVerified {
 				if strings.HasPrefix(r.URL.Path, "/api/") {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusServiceUnavailable)

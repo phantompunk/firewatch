@@ -65,7 +65,52 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Update saves updated settings.
+// verificationResult is the JSON shape returned by Update and Apply.
+type verificationResult struct {
+	SMTPVerified bool   `json:"smtpVerified"`
+	SMTPError    string `json:"smtpError"`
+	PGPVerified  bool   `json:"pgpVerified"`
+	PGPError     string `json:"pgpError"`
+}
+
+// verifyAndPersist runs SMTP and PGP verification against s, persists the
+// updated flags, and reconfigures the live mailer.
+func (h *SettingsHandler) verifyAndPersist(ctx context.Context, s *model.AppSettings) {
+	tmp := mailer.New(mailer.NewConfigFromSettings(s))
+
+	if err := tmp.Ping(); err != nil {
+		s.SMTPVerified = false
+		s.SMTPError = err.Error()
+	} else {
+		s.SMTPVerified = true
+		s.SMTPError = ""
+	}
+
+	if err := tmp.CanEncrypt(); err != nil {
+		s.PGPVerified = false
+		s.PGPError = err.Error()
+	} else {
+		s.PGPVerified = true
+		s.PGPError = ""
+	}
+
+	if err := h.settings.Save(ctx, s); err != nil {
+		slog.Error("settings: failed to persist verification state", "err", err)
+	}
+
+	if !s.SMTPVerified || !s.PGPVerified {
+		slog.Warn("settings: auto-maintenance active",
+			"smtpVerified", s.SMTPVerified,
+			"smtpError", s.SMTPError,
+			"pgpVerified", s.PGPVerified,
+			"pgpError", s.PGPError,
+		)
+	}
+
+	h.mailer.Reconfigure(mailer.NewConfigFromSettings(s))
+}
+
+// Update saves updated settings, runs verification, and returns the result as JSON.
 func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	s := &model.AppSettings{}
 	if err := h.readJSON(w, r, &s); err != nil {
@@ -82,25 +127,48 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		s.SMTPPass = current.SMTPPass
 	}
 
+	// Save first so the password is persisted before verification.
 	if err := h.settings.Save(r.Context(), s); err != nil {
 		h.serverErrorResponse(w, r, err)
 		return
 	}
+
+	h.verifyAndPersist(r.Context(), s)
+
+	result := verificationResult{
+		SMTPVerified: s.SMTPVerified,
+		SMTPError:    s.SMTPError,
+		PGPVerified:  s.PGPVerified,
+		PGPError:     s.PGPError,
+	}
+	if err := h.writeJSON(w, http.StatusOK, result, nil); err != nil {
+		h.serverErrorResponse(w, r, err)
+	}
 }
 
-// Apply re-initialises the mailer with current settings.
+// Apply re-initialises the mailer with current settings and runs verification.
 func (h *SettingsHandler) Apply(w http.ResponseWriter, r *http.Request) {
 	s, err := h.settings.Load(r.Context())
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	h.mailer.Reconfigure(mailer.NewConfigFromSettings(s))
-	w.WriteHeader(http.StatusOK)
+
+	h.verifyAndPersist(r.Context(), s)
+
+	result := verificationResult{
+		SMTPVerified: s.SMTPVerified,
+		SMTPError:    s.SMTPError,
+		PGPVerified:  s.PGPVerified,
+		PGPError:     s.PGPError,
+	}
+	if err := h.writeJSON(w, http.StatusOK, result, nil); err != nil {
+		h.serverErrorResponse(w, r, err)
+	}
 }
 
-// TestEmail sends a test email to the configured destination.
-// On failure, maintenance mode is automatically enabled to guard the public form.
+// TestEmail sends a test ping using a temporary mailer built from the request
+// body. The live mailer is never mutated.
 func (h *SettingsHandler) TestEmail(w http.ResponseWriter, r *http.Request) {
 	current := &model.AppSettings{}
 	if err := h.readJSON(w, r, &current); err != nil {
@@ -117,10 +185,10 @@ func (h *SettingsHandler) TestEmail(w http.ResponseWriter, r *http.Request) {
 		current.SMTPPass = saved.SMTPPass
 	}
 
-	h.mailer.Reconfigure(mailer.NewConfigFromSettings(current))
-	if sendErr := h.mailer.Ping(); sendErr != nil {
-		h.logger.Error("settings: test ping failed", "err", sendErr)
-		http.Error(w, "Send failed: "+sendErr.Error(), http.StatusBadGateway)
+	tmp := mailer.New(mailer.NewConfigFromSettings(current))
+	if err := tmp.Ping(); err != nil {
+		h.logger.Error("settings: test ping failed", "err", err)
+		http.Error(w, "Send failed: "+err.Error(), http.StatusBadGateway)
 		return
 	}
 	w.WriteHeader(http.StatusOK)

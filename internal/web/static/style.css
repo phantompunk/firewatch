@@ -304,6 +304,17 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .feedback-ok { color: #198754; }
 .feedback-err { color: var(--color-danger); }
 
+/* Status badges (SMTP / PGP verification) */
+.status-badge { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 0.15em 0.55em; border-radius: 999px; margin-left: 0.5rem; vertical-align: middle; }
+.badge-ok { background: #d1f0e0; color: #146c43; }
+.badge-err { background: #fde8e8; color: var(--color-danger); }
+.badge-err-text { display: block; color: var(--color-danger); margin-top: 0.25rem; }
+
+/* Alert banner */
+.alert { padding: 1rem 1.25rem; border-radius: var(--radius); margin-bottom: 1.5rem; border: 1px solid transparent; }
+.alert ul { margin: 0.5rem 0 0 1.25rem; padding: 0; }
+.alert-warning { background: #fff8e1; border-color: #ffe082; color: #7a5800; }
+
 /* Table */
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--color-border); }

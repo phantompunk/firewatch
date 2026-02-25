@@ -20,6 +20,17 @@
     </div>
   </div>
 
+  {{if or (not .SMTPVerified) (not .PGPVerified)}}
+  <div class="alert alert-warning" id="auto-maintenance-banner">
+    <strong>Maintenance mode is active</strong> — the public form is unavailable until the following issues are resolved:
+    <ul>
+      {{if not .SMTPVerified}}<li><strong>SMTP:</strong> {{if .SMTPError}}{{.SMTPError}}{{else}}not verified{{end}}</li>{{end}}
+      {{if not .PGPVerified}}<li><strong>PGP:</strong> {{if .PGPError}}{{.PGPError}}{{else}}not verified{{end}}</li>{{end}}
+    </ul>
+    Save valid settings below to lift this restriction automatically.
+  </div>
+  {{end}}
+
   <form id="settings-form">
 
     <div class="settings-card">
@@ -45,6 +56,10 @@
           <label class="settings-row-label" for="s-pgp">
             PGP Public Key
             <span class="settings-row-hint">Used to encrypt outgoing report emails</span>
+            <span id="pgp-badge" class="status-badge {{if .PGPVerified}}badge-ok{{else}}badge-err{{end}}">
+              {{if .PGPVerified}}Verified{{else}}Not verified{{end}}
+            </span>
+            {{if and (not .PGPVerified) .PGPError}}<span class="settings-row-hint badge-err-text">{{.PGPError}}</span>{{end}}
           </label>
           <textarea id="s-pgp" name="pgpKey" rows="4" placeholder="-----BEGIN PGP PUBLIC KEY BLOCK-----">{{.PGPKey}}</textarea>
         </div>
@@ -66,6 +81,10 @@
     <div class="settings-card">
       <div class="settings-card-header">
         <h2>SMTP Server</h2>
+        <span id="smtp-badge" class="status-badge {{if .SMTPVerified}}badge-ok{{else}}badge-err{{end}}">
+          {{if .SMTPVerified}}Verified{{else}}Not verified{{end}}
+        </span>
+        {{if and (not .SMTPVerified) .SMTPError}}<span class="settings-row-hint badge-err-text">{{.SMTPError}}</span>{{end}}
       </div>
       <div class="settings-rows">
         <div class="settings-row">
@@ -110,7 +129,7 @@
         <div class="settings-row">
           <label class="settings-row-label" for="s-maintenance">
             Maintenance Mode
-            <span class="settings-row-hint">Disables the public form. Automatically turns on if a test email fails.</span>
+            <span class="settings-row-hint">Manual override. Maintenance mode is also forced on when SMTP or PGP verification fails.</span>
           </label>
           <label class="toggle-switch">
             <input type="checkbox" id="s-maintenance" name="maintenanceMode" {{if .MaintenanceMode}}checked{{end}}>
@@ -130,6 +149,29 @@
 </main>
 </div><!-- admin-shell -->
 <script>
+function applyVerification(v) {
+  const smtpBadge = document.getElementById('smtp-badge');
+  const pgpBadge = document.getElementById('pgp-badge');
+  const banner = document.getElementById('auto-maintenance-banner');
+
+  if (smtpBadge) {
+    smtpBadge.textContent = v.smtpVerified ? 'Verified' : 'Not verified';
+    smtpBadge.className = 'status-badge ' + (v.smtpVerified ? 'badge-ok' : 'badge-err');
+  }
+  if (pgpBadge) {
+    pgpBadge.textContent = v.pgpVerified ? 'Verified' : 'Not verified';
+    pgpBadge.className = 'status-badge ' + (v.pgpVerified ? 'badge-ok' : 'badge-err');
+  }
+
+  const needsMaintenance = !v.smtpVerified || !v.pgpVerified;
+  if (needsMaintenance && !banner) {
+    // Reload so the server-rendered banner appears with the correct error text.
+    location.reload();
+  } else if (!needsMaintenance && banner) {
+    banner.remove();
+  }
+}
+
 document.getElementById('settings-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));
@@ -141,10 +183,18 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
     body: JSON.stringify(data),
   });
   const el = document.getElementById('save-result');
-  el.textContent = r.ok ? 'Saved.' : 'Failed to save.';
-  el.className = 'settings-feedback ' + (r.ok ? 'feedback-ok' : 'feedback-err');
+  if (r.ok) {
+    const v = await r.json();
+    applyVerification(v);
+    el.textContent = 'Saved.';
+    el.className = 'settings-feedback feedback-ok';
+  } else {
+    el.textContent = 'Failed to save.';
+    el.className = 'settings-feedback feedback-err';
+  }
   setTimeout(() => { el.textContent = ''; el.className = 'settings-feedback'; }, 3000);
 });
+
 document.getElementById('btn-test-email').addEventListener('click', async () => {
   const form = document.getElementById('settings-form');
   const data = Object.fromEntries(new FormData(form));
@@ -157,17 +207,22 @@ document.getElementById('btn-test-email').addEventListener('click', async () => 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!r.ok) {
-    form.querySelector('[name="maintenanceMode"]').checked = true;
-  }
-  el.textContent = r.ok ? 'Sent!' : 'Failed — maintenance mode enabled.';
+  el.textContent = r.ok ? 'Sent!' : 'Failed.';
   el.className = 'settings-feedback ' + (r.ok ? 'feedback-ok' : 'feedback-err');
 });
+
 document.getElementById('btn-apply').addEventListener('click', async () => {
   const el = document.getElementById('apply-result');
   const r = await fetch('/api/admin/settings/apply', { method: 'POST' });
-  el.textContent = r.ok ? 'Applied.' : 'Error.';
-  el.className = 'settings-feedback ' + (r.ok ? 'feedback-ok' : 'feedback-err');
+  if (r.ok) {
+    const v = await r.json();
+    applyVerification(v);
+    el.textContent = 'Applied.';
+    el.className = 'settings-feedback feedback-ok';
+  } else {
+    el.textContent = 'Error.';
+    el.className = 'settings-feedback feedback-err';
+  }
 });
 </script>
 </body>
