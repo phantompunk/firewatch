@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
-    env_file: .env
+    env_file: .env.docker
     volumes:
       - firewatch_data:/data
     healthcheck:
