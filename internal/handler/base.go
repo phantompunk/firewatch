@@ -12,14 +12,14 @@ import (
 type envelope map[string]any
 
 type BaseHandler struct {
-	Logger *slog.Logger
+	logger *slog.Logger
 }
 
 func (h *BaseHandler) logError(r *http.Request, err error) {
 	method := r.Method
 	uri := r.URL.RequestURI()
 
-	h.Logger.Error(err.Error(), "method", method, "uri", uri)
+	h.logger.Error(err.Error(), "method", method, "uri", uri)
 }
 
 func (h *BaseHandler) errorResponse(w http.ResponseWriter, r *http.Request, status int, message any) {

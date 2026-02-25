@@ -67,7 +67,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	identifier := r.FormValue("identifier")
 	password := r.FormValue("password")
 
-	slog.Info("login attempt", "identifier", identifier, "password", password)
+	slog.Info("login attempt", "identifier", identifier)
 
 	renderLoginError := func() {
 		if err := h.templates.ExecuteTemplate(w, "admin_login.html", map[string]any{"Error": "Invalid credentials."}); err != nil {
@@ -86,7 +86,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		user, hash, err = h.users.GetByEmailHMAC(r.Context(), identifier)
 	}
 
-	slog.Info("lookup result", "user", user, "hash", hash, "err", err)
 	if err != nil || !auth.Verify(hash, password) {
 		slog.Info("authentication failed", "identifier", identifier)
 		renderLoginError()
@@ -94,17 +93,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user.Status != model.StatusActive {
-		slog.Info("account inactive", "identifier", identifier, "status", user.Status)
 		if err := h.templates.ExecuteTemplate(w, "admin_login.html", map[string]any{"Error": "Account is inactive."}); err != nil {
 			slog.Error("auth: template error", "err", err)
 		}
 		return
 	}
 
-	slog.Info("authentication successful", "identifier", identifier, "user_id", user.ID)
 	sessionID, err := h.sessions.Create(r.Context(), user.ID)
 	if err != nil {
-		slog.Error("auth: failed to create session", "err", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}

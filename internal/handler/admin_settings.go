@@ -25,12 +25,12 @@ type settingsStore interface {
 type SettingsHandler struct {
 	BaseHandler
 	settings  settingsStore
-	mailer    *mailer.Mailer
+	mailer    mailer.TestSender
 	templates *template.Template
 }
 
-func NewSettingsHandler(logger *slog.Logger, settings settingsStore, m *mailer.Mailer, tmpl *template.Template) *SettingsHandler {
-	return &SettingsHandler{BaseHandler: BaseHandler{Logger: logger}, settings: settings, mailer: m, templates: tmpl}
+func NewSettingsHandler(logger *slog.Logger, settings settingsStore, m mailer.TestSender, tmpl *template.Template) *SettingsHandler {
+	return &SettingsHandler{BaseHandler: BaseHandler{logger: logger}, settings: settings, mailer: m, templates: tmpl}
 }
 
 // Page renders the admin settings page.
@@ -61,7 +61,7 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	err = h.writeJSON(w, http.StatusOK, s, nil)
 	if err != nil {
 		h.serverErrorResponse(w, r, err)
-		return 
+		return
 	}
 }
 
@@ -95,7 +95,7 @@ func (h *SettingsHandler) Apply(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	h.mailer.Reconfigure(s)
+	h.mailer.Reconfigure(mailer.NewConfigFromSettings(s))
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -106,11 +106,16 @@ func (h *SettingsHandler) TestEmail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	h.mailer.Reconfigure(s)
-	if err := h.mailer.Send("Test Email", "This is a test email from Firewatch."); err != nil {
-		slog.Error("settings: test email failed", "err", err)
+	h.mailer.Reconfigure(mailer.NewConfigFromSettings(s))
+	if err := h.mailer.SendTest(); err != nil {
+		h.logger.Error("settings: test email failed", "err", err)
 		http.Error(w, "Send failed: "+err.Error(), http.StatusBadGateway)
 		return
 	}
+	// if err := h.mailer.Send("Test Email", "This is a test email from Firewatch."); err != nil {
+	// 	slog.Error("settings: test email failed", "err", err)
+	// 	http.Error(w, "Send failed: "+err.Error(), http.StatusBadGateway)
+	// 	return
+	// }
 	w.WriteHeader(http.StatusOK)
 }

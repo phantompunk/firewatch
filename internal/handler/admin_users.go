@@ -34,12 +34,12 @@ type adminUsersPageData struct {
 type UsersHandler struct {
 	users         userManagementStore
 	sessions      allSessionDeleter
-	mailer        *mailer.Mailer
+	mailer        mailer.InviteSender
 	inviteBaseURL string
 	templates     *template.Template
 }
 
-func NewUsersHandler(users userManagementStore, sessions allSessionDeleter, m *mailer.Mailer, inviteBaseURL string, tmpl *template.Template) *UsersHandler {
+func NewUsersHandler(users userManagementStore, sessions allSessionDeleter, m mailer.InviteSender, inviteBaseURL string, tmpl *template.Template) *UsersHandler {
 	return &UsersHandler{users: users, sessions: sessions, mailer: m, inviteBaseURL: inviteBaseURL, templates: tmpl}
 }
 

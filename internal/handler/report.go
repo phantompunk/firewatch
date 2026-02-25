@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"slices"
 	"context"
 	"encoding/json"
 	"html/template"
@@ -22,7 +23,7 @@ type ReportHandler struct {
 	BaseHandler
 	schemas   schemaLoader
 	sessions  middleware.SessionReader
-	mailer    *mailer.Mailer
+	mailer    mailer.ReportSender
 	templates *template.Template
 }
 
@@ -44,8 +45,8 @@ type reportFieldView struct {
 	Placeholder string
 }
 
-func NewReportHandler(logger *slog.Logger, schemas schemaLoader, sessions middleware.SessionReader, m *mailer.Mailer, tmpl *template.Template) *ReportHandler {
-	return &ReportHandler{BaseHandler: BaseHandler{Logger: logger}, schemas: schemas, sessions: sessions, mailer: m, templates: tmpl}
+func NewReportHandler(logger *slog.Logger, schemas schemaLoader, sessions middleware.SessionReader, m mailer.ReportSender, tmpl *template.Template) *ReportHandler {
+	return &ReportHandler{BaseHandler: BaseHandler{logger: logger}, schemas: schemas, sessions: sessions, mailer: m, templates: tmpl}
 }
 
 // Form renders the public report form.
@@ -115,7 +116,7 @@ func (h *ReportHandler) Form(w http.ResponseWriter, r *http.Request) {
 func (h *ReportHandler) Get(w http.ResponseWriter, r *http.Request) {
 	schema, err := h.schemas.LiveSchema(r.Context())
 	if err != nil {
-		h.Logger.Error("report: failed to load live schema", "err", err)
+		h.logger.Error("report: failed to load live schema", "err", err)
 		h.serverErrorResponse(w, r, err)
 		return
 	}
@@ -161,7 +162,7 @@ func (h *ReportHandler) Submit(w http.ResponseWriter, r *http.Request) {
 	// Always use the English email template for admin notifications.
 	emailTmpl := schema.EmailTemplates[model.LangEN]
 	body := mailer.RenderTemplate(emailTmpl, req.Fields)
-	if err := h.mailer.Send("New Community Report", body); err != nil {
+	if err := h.mailer.SendReport(body); err!=nil {
 		// Log but do not surface to submitter.
 		slog.Error("report: smtp send failed", "err", err)
 	}
@@ -172,10 +173,5 @@ func (h *ReportHandler) Submit(w http.ResponseWriter, r *http.Request) {
 
 // containsString reports whether s is in the slice.
 func containsString(slice []string, s string) bool {
-	for _, v := range slice {
-		if v == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, s)
 }

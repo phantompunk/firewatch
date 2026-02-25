@@ -33,7 +33,7 @@ type AdminReportHandler struct {
 }
 
 func NewAdminReportHandler(logger *slog.Logger, schemas schemaDraftStore, tmpl *template.Template) *AdminReportHandler {
-	return &AdminReportHandler{BaseHandler: BaseHandler{Logger: logger}, schemas: schemas, templates: tmpl}
+	return &AdminReportHandler{BaseHandler: BaseHandler{logger: logger}, schemas: schemas, templates: tmpl}
 }
 
 // Page renders the admin report editor.

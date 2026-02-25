@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"log/slog"
 	"time"
 
 	dbpkg "github.com/firewatch/internal/db"
@@ -25,7 +24,6 @@ func NewSessionStore(db *sql.DB) *SessionStore {
 func (s *SessionStore) Create(ctx context.Context, userID string) (string, error) {
 	id := newToken()
 	expiresAt := time.Now().Add(sessionTTL).UTC()
-	slog.Info("creating session", "session_id", id, "user_id", userID, "expires_at", expiresAt.Format(time.RFC3339))
 	err := s.q.CreateSession(ctx, dbpkg.CreateSessionParams{
 		ID:        id,
 		UserID:    userID,

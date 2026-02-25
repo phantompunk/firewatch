@@ -1,0 +1,21 @@
+# Environment
+.env
+.env.local
+.env.docker
+
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test artifacts
+*.test
+coverage.out
+tmp
+

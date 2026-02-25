@@ -74,8 +74,7 @@ func New() (*App, error) {
 	}
 
 	s, _ := settingsStore.Load(ctx)
-	m := mailer.New()
-	m.Reconfigure(s)
+	m := mailer.New(mailer.NewConfigFromSettings(s))
 
 	return &App{
 		config:        cfg,
@@ -190,3 +189,4 @@ func newLogger(cfg *config.Config) *slog.Logger {
 	slog.SetDefault(logger)
 	return logger
 }
+
