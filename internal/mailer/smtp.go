@@ -1,6 +1,7 @@
 package mailer
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/smtp"
 	"strings"
@@ -17,9 +18,9 @@ type InviteSender interface {
 	SendInvite(to, inviteUrl string) error
 }
 
-// TestSender sends test emails to verify mailer configuration.
-type TestSender interface {
-	SendTest() error
+// PingSender sends test emails to verify mailer configuration.
+type PingSender interface {
+	Ping() error
 	Reconfigure(cfg *Config)
 }
 
@@ -45,6 +46,7 @@ type Config struct {
 	FromName    string
 	FromAddress string
 	To          []string
+	PGPKey      string
 }
 
 type Mailer struct {
@@ -100,14 +102,33 @@ func (m *Mailer) SendInvite(toEmail, inviteURL string) error {
 	})
 }
 
-// SendTest sends a test email to verify mailer configuration.
-func (m *Mailer) SendTest() error {
-	return m.sendFn(Message{
-		To:      []string{m.cfg.FromAddress},
-		Subject: "Test Email from Firewatch",
-		Body:    "This is a test email from Firewatch. If you received this, your mailer is configured correctly.",
-		IsHTML:  false,
-	})
+
+// Ping attempts to connect and authenticate with the SMTP server to verify configuration.
+func (m *Mailer) Ping() error {
+	m.mu.RLock()
+	cfg := m.cfg
+	m.mu.RUnlock()
+
+	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	auth := smtp.PlainAuth("", cfg.User, cfg.Pass, cfg.Host)
+
+	client, err := smtp.Dial(addr)
+	if err != nil {
+		return fmt.Errorf("mailer ping: dial %s: %w", addr, err)
+	}
+	defer client.Close()
+
+	if ok, _ := client.Extension("STARTTLS"); ok {
+		if err := client.StartTLS(&tls.Config{ServerName: m.cfg.Host, MinVersion: tls.VersionTLS12}); err != nil {
+			return fmt.Errorf("mailer ping: STARTTLS: %w", err)
+		}
+	}
+
+	if err := client.Auth(auth); err != nil {
+		return fmt.Errorf("mailer ping: auth: %w", err)
+	}
+
+	return nil
 }
 
 // SendReport sends a report email to the configured destination(s).

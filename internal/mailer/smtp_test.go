@@ -86,27 +86,6 @@ func TestSendInviteEmail(t *testing.T) {
 	}
 }
 
-func TestSendTestEmail(t *testing.T) {
-	m := New(&Config{FromAddress: "noreply@example.org", FromName: "Firewatch"})
-	captured := captureSend(t, m)
-
-	if err := m.SendTest(); err != nil {
-		t.Fatalf("SendInvite returned an error: %v", err)
-	}
-
-	if !strings.Contains(captured.To[0], "noreply@example.org") {
-		t.Errorf("unexpected recipient, got %s", captured.To[0])
-	}
-
-	if !strings.Contains(captured.Subject, "Test Email from Firewatch") {
-		t.Errorf("unexpected subject: %s", captured.Subject)
-	}
-
-	if !strings.Contains(captured.Body, "mailer is configured correctly") {
-		t.Errorf("unexpected body, got: %s", captured.Body)
-	}
-}
-
 func TestSendReportEmail(t *testing.T) {
 	m := New(&Config{FromAddress: "noreply@example.org", FromName: "Firewatch", To: []string{"admin@example.org"}})
 	captured := captureSend(t, m)

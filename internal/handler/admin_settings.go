@@ -25,11 +25,11 @@ type settingsStore interface {
 type SettingsHandler struct {
 	BaseHandler
 	settings  settingsStore
-	mailer    mailer.TestSender
+	mailer    mailer.PingSender
 	templates *template.Template
 }
 
-func NewSettingsHandler(logger *slog.Logger, settings settingsStore, m mailer.TestSender, tmpl *template.Template) *SettingsHandler {
+func NewSettingsHandler(logger *slog.Logger, settings settingsStore, m mailer.PingSender, tmpl *template.Template) *SettingsHandler {
 	return &SettingsHandler{BaseHandler: BaseHandler{logger: logger}, settings: settings, mailer: m, templates: tmpl}
 }
 
@@ -100,22 +100,28 @@ func (h *SettingsHandler) Apply(w http.ResponseWriter, r *http.Request) {
 }
 
 // TestEmail sends a test email to the configured destination.
+// On failure, maintenance mode is automatically enabled to guard the public form.
 func (h *SettingsHandler) TestEmail(w http.ResponseWriter, r *http.Request) {
-	s, err := h.settings.Load(r.Context())
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	current := &model.AppSettings{}
+	if err := h.readJSON(w, r, &current); err != nil {
+		h.serverErrorResponse(w, r, err)
 		return
 	}
-	h.mailer.Reconfigure(mailer.NewConfigFromSettings(s))
-	if err := h.mailer.SendTest(); err != nil {
-		h.logger.Error("settings: test email failed", "err", err)
-		http.Error(w, "Send failed: "+err.Error(), http.StatusBadGateway)
+
+	if current.SMTPPass == "" {
+		saved, err := h.settings.Load(r.Context())
+		if err != nil {
+			h.serverErrorResponse(w, r, err)
+			return
+		}
+		current.SMTPPass = saved.SMTPPass
+	}
+
+	h.mailer.Reconfigure(mailer.NewConfigFromSettings(current))
+	if sendErr := h.mailer.Ping(); sendErr != nil {
+		h.logger.Error("settings: test ping failed", "err", sendErr)
+		http.Error(w, "Send failed: "+sendErr.Error(), http.StatusBadGateway)
 		return
 	}
-	// if err := h.mailer.Send("Test Email", "This is a test email from Firewatch."); err != nil {
-	// 	slog.Error("settings: test email failed", "err", err)
-	// 	http.Error(w, "Send failed: "+err.Error(), http.StatusBadGateway)
-	// 	return
-	// }
 	w.WriteHeader(http.StatusOK)
 }

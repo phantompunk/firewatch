@@ -11,4 +11,5 @@ type AppSettings struct {
 	SMTPFromName          string `json:"smtpFromName"`
 	ReportRetentionPolicy string `json:"reportRetentionPolicy"`
 	MaintenanceMode       bool   `json:"maintenanceMode"`
+	PGPKey                string `json:"pgpKey"`
 }

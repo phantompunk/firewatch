@@ -41,6 +41,13 @@
           </label>
           <input type="text" id="s-subject" name="emailSubjectTemplate" value="{{.EmailSubjectTemplate}}">
         </div>
+        <div class="settings-row settings-row--top">
+          <label class="settings-row-label" for="s-pgp">
+            PGP Public Key
+            <span class="settings-row-hint">Used to encrypt outgoing report emails</span>
+          </label>
+          <textarea id="s-pgp" name="pgpKey" rows="4" placeholder="-----BEGIN PGP PUBLIC KEY BLOCK-----">{{.PGPKey}}</textarea>
+        </div>
         <div class="settings-row">
           <label class="settings-row-label" for="s-from">
             From Address
@@ -103,7 +110,7 @@
         <div class="settings-row">
           <label class="settings-row-label" for="s-maintenance">
             Maintenance Mode
-            <span class="settings-row-hint">Disables the public form and shows a maintenance page</span>
+            <span class="settings-row-hint">Disables the public form. Automatically turns on if a test email fails.</span>
           </label>
           <label class="toggle-switch">
             <input type="checkbox" id="s-maintenance" name="maintenanceMode" {{if .MaintenanceMode}}checked{{end}}>
@@ -139,10 +146,21 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
   setTimeout(() => { el.textContent = ''; el.className = 'settings-feedback'; }, 3000);
 });
 document.getElementById('btn-test-email').addEventListener('click', async () => {
+  const form = document.getElementById('settings-form');
+  const data = Object.fromEntries(new FormData(form));
+  data.smtpPort = parseInt(data.smtpPort, 10) || 0;
+  data.maintenanceMode = !!form.querySelector('[name="maintenanceMode"]').checked;
   const el = document.getElementById('test-email-result');
   el.textContent = 'Sending…';
-  const r = await fetch('/api/admin/settings/test-email', { method: 'POST' });
-  el.textContent = r.ok ? 'Sent!' : 'Failed.';
+  const r = await fetch('/api/admin/settings/test-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!r.ok) {
+    form.querySelector('[name="maintenanceMode"]').checked = true;
+  }
+  el.textContent = r.ok ? 'Sent!' : 'Failed — maintenance mode enabled.';
   el.className = 'settings-feedback ' + (r.ok ? 'feedback-ok' : 'feedback-err');
 });
 document.getElementById('btn-apply').addEventListener('click', async () => {

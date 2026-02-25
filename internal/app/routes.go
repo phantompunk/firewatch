@@ -23,13 +23,17 @@ func (app App) routes() http.Handler {
 
 	// Public report form
 	reportHandler := handler.NewReportHandler(app.logger, app.schemaStore, app.sessionStore, app.mailer, web.Templates)
-	r.Get("/", reportHandler.Form)
 	r.Get("/admin", reportHandler.RedirectToLogin)
 	r.Get("/login", reportHandler.RedirectToLogin)
-	r.Get("/api/report", reportHandler.Get)
 
-	// TODO: finish
-	r.Post("/api/report", reportHandler.Submit)
+	// Maintenance-guarded public routes
+	maintenanceMW := middleware.MaintenanceMode(app.settingsStore, web.Templates)
+	r.Group(func(r chi.Router) {
+		r.Use(maintenanceMW)
+		r.Get("/", reportHandler.Form)
+		r.Get("/api/report", reportHandler.Get)
+		r.Post("/api/report", reportHandler.Submit)
+	})
 
 	// Admin auth (public endpoints)
 	authHandler := handler.NewAuthHandler(app.userStore, app.sessionStore, app.userStore, web.Templates, app.config.SecureCookies)

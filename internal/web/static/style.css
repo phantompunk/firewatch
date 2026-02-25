@@ -260,7 +260,8 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .settings-row input[type="text"],
 .settings-row input[type="email"],
 .settings-row input[type="number"],
-.settings-row input[type="password"] {
+.settings-row input[type="password"],
+.settings-row textarea {
   width: 100%;
   padding: 0.45rem 0.75rem;
   border: 1px solid var(--color-border);
@@ -270,11 +271,19 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   background: var(--color-bg);
   color: var(--color-text);
 }
-.settings-row input:focus {
+.settings-row textarea {
+  resize: vertical;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.settings-row input:focus,
+.settings-row textarea:focus {
   outline: none;
   border-color: var(--color-primary);
   background: var(--color-surface);
 }
+.settings-row--top { align-items: start; padding-top: 1rem; }
 .settings-input-narrow { max-width: 120px !important; }
 
 .settings-bottom-bar {
@@ -1023,4 +1032,41 @@ section h2 { margin-bottom: 1rem; }
   background: var(--color-primary);
   color: #fff;
   border-color: var(--color-primary);
+}
+
+/* Maintenance page */
+.maintenance-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing);
+  background: var(--color-bg);
+}
+.maintenance-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 2.5rem 2rem;
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+}
+.maintenance-card h1 {
+  font-size: 1.4rem;
+  margin-bottom: 0.75rem;
+}
+.maintenance-card p {
+  color: var(--color-muted);
+  margin-bottom: 1.5rem;
+}
+.maintenance-admin-link {
+  display: inline-block;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  text-decoration: none;
+}
+.maintenance-admin-link:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
 }

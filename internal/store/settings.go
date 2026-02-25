@@ -77,6 +77,6 @@ func settingsFromEnv() *model.AppSettings {
 		SMTPFromAddress:       os.Getenv("SMTP_FROM_ADDRESS"),
 		SMTPFromName:          os.Getenv("SMTP_FROM_NAME"),
 		ReportRetentionPolicy: "forward-only",
-		MaintenanceMode:       false,
+		MaintenanceMode:       true,
 	}
 }
