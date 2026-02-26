@@ -90,24 +90,6 @@ func TestSendInviteEmail(t *testing.T) {
 	}
 }
 
-func TestSendReportEmail(t *testing.T) {
-	m := New(&Config{FromAddress: "noreply@example.org", FromName: "Firewatch", To: []string{"admin@example.org"}})
-	captured := captureSend(t, m)
-
-	if err := m.SendReport("This is a report."); err != nil {
-		t.Fatalf("SendReport returned an error: %v", err)
-	}
-
-	// To address should be the configured To address
-	if !strings.Contains(captured.To[0], "admin@example.org") {
-		t.Errorf("unexpected recipient, got %s", captured.To[0])
-	}
-
-	if !strings.Contains(captured.Body, "This is a report.") {
-		t.Errorf("unexpected body, got: %s", captured.Body)
-	}
-}
-
 func generateTestKey(t *testing.T) (publickey, privatekey string) {
 	t.Helper()
 
@@ -156,12 +138,21 @@ func mustDecrypt(t *testing.T, armoredPrivKey, armoredMsg string) string {
 
 func TestSendEncryptedReport(t *testing.T) {
 	pubKey, privKey := generateTestKey(t)
-	m := New(&Config{FromAddress: "noreply@example.org", FromName: "Firewatch", PGPPublicKey: pubKey})
+	m := New(&Config{
+		FromAddress:  "noreply@example.org",
+		FromName:     "Firewatch",
+		To:           []string{"admin@example.org"},
+		PGPPublicKey: pubKey,
+	})
 
 	captured := captureSend(t, m)
 
 	if err := m.SendReport("Sensitive info"); err != nil {
 		t.Fatalf("send report error: %v", err)
+	}
+
+	if !strings.Contains(captured.To[0], "admin@example.org") {
+		t.Errorf("unexpected recipient, got %s", captured.To[0])
 	}
 
 	if !strings.Contains(captured.Body, "-----BEGIN PGP MESSAGE-----") {
@@ -178,7 +169,7 @@ func TestCanEncryptValidKey(t *testing.T) {
 	pubKey, _ := generateTestKey(t)
 	m := New(&Config{PGPPublicKey: pubKey})
 
-	if err := m.CanEncrypt(); err !=nil{
+	if err := m.CanEncrypt(); err != nil {
 		t.Errorf("expected nil for valid key, got: %v", err)
 	}
 }
@@ -187,7 +178,7 @@ func TestCanEncryptNoKey(t *testing.T) {
 	m := New(&Config{})
 
 	err := m.CanEncrypt()
-	if err ==nil{
+	if err == nil {
 		t.Errorf("expected error for missing key, got: %v", err)
 	}
 	if !strings.Contains(err.Error(), "no PGP public key configured") {
@@ -199,14 +190,14 @@ func TestCanEncryptAfterReconfigure(t *testing.T) {
 	m := New(&Config{})
 
 	err := m.CanEncrypt()
-	if err ==nil{
+	if err == nil {
 		t.Errorf("expected error before key is configured")
 	}
 
 	pubKey, _ := generateTestKey(t)
 	m.Reconfigure(&Config{PGPPublicKey: pubKey})
 
-	if err := m.CanEncrypt(); err !=nil{
+	if err := m.CanEncrypt(); err != nil {
 		t.Errorf("expected nil after valid key reconfigured, got: %v", err)
 	}
 }

@@ -71,6 +71,7 @@ func (m *Mailer) Reconfigure(cfg *Config) {
 	m.cfg = cfg
 }
 
+// formatMessage constructs the raw email message string from the Message struct.
 func (m *Mailer) formatMessage(msg Message) string {
 	return fmt.Sprintf(
 		"From: %s <%s>\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",
@@ -82,6 +83,7 @@ func (m *Mailer) formatMessage(msg Message) string {
 	)
 }
 
+// send sends the email message using SMTP. It constructs the email headers and body, and then uses smtp.SendMail to send it.
 func (m *Mailer) send(msg Message) error {
 	m.mu.Lock()
 	cfg := m.cfg
@@ -91,7 +93,48 @@ func (m *Mailer) send(msg Message) error {
 	auth := smtp.PlainAuth("", cfg.User, cfg.Pass, cfg.Host)
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 
-	return smtp.SendMail(addr, auth, cfg.FromAddress, msg.To, []byte(m.formatMessage(msg)))
+	client, err := smtp.Dial(addr)
+	if err != nil {
+		return fmt.Errorf("dial %s: %w", addr, err)
+	}
+	defer client.Close()
+
+	ok, _ := client.Extension("STARTTLS")
+	if !ok {
+		return fmt.Errorf("SMTP server does not support STARTTLS")
+	}
+
+	tlsConfig := &tls.Config{ServerName: cfg.Host, MinVersion: tls.VersionTLS12}
+	if err := client.StartTLS(tlsConfig); err != nil {
+		return fmt.Errorf("STARTTLS: %w", err)
+	}
+
+	if err := client.Auth(auth); err != nil {
+		return fmt.Errorf("auth: %w", err)
+	}
+
+	if err := client.Mail(cfg.FromAddress); err != nil {
+		return fmt.Errorf("set from: %w", err)
+	}
+
+	for _, recipient := range msg.To {
+		if err := client.Rcpt(recipient); err != nil {
+			return fmt.Errorf("set recipient %s: %w", recipient, err)
+		}
+	}
+
+	wc, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("get data writer: %w", err)
+	}
+	defer wc.Close()
+
+	messageStr := m.formatMessage(msg)
+	if _, err := wc.Write([]byte(messageStr)); err != nil {
+		return fmt.Errorf("write message: %w", err)
+	}
+
+	return nil
 }
 
 func (m *Mailer) sendEncrypted(msg Message) error {
