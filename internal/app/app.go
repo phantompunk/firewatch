@@ -34,7 +34,7 @@ type App struct {
 	userStore     *store.UserStore
 	sessionStore  *store.SessionStore
 	settingsStore *store.SettingsStore
-	mailer        *mailer.Mailer
+	mailerQueue   *mailer.Queue
 }
 
 func (app *App) Close() {
@@ -75,6 +75,7 @@ func New() (*App, error) {
 
 	s, _ := settingsStore.Load(ctx)
 	m := mailer.New(mailer.NewConfigFromSettings(s))
+	q := mailer.NewQueue(m, time.Second, 64, 3)
 
 	// Verify SMTP and PGP at startup so the flags reflect current reality.
 	tmp := mailer.New(mailer.NewConfigFromSettings(s))
@@ -106,7 +107,7 @@ func New() (*App, error) {
 		userStore:     userStore,
 		sessionStore:  sessionStore,
 		settingsStore: settingsStore,
-		mailer:        m,
+		mailerQueue:  q,
 	}, nil
 }
 
@@ -122,6 +123,12 @@ func (app App) Start(ctx context.Context) error {
 		WriteTimeout: 10 * time.Second,
 		ErrorLog:     slog.NewLogLogger(app.logger.Handler(), slog.LevelError),
 	}
+
+	// Start the mailer queue
+	g.Go(func() error {
+		app.mailerQueue.Start(gctx)
+		return nil
+	})
 
 	// Start the server in a goroutine
 	g.Go(func() error {
@@ -211,4 +218,3 @@ func newLogger(cfg *config.Config) *slog.Logger {
 	slog.SetDefault(logger)
 	return logger
 }
-

@@ -22,7 +22,7 @@ func (app App) routes() http.Handler {
 	r.Get("/api/health", handler.Health(app.db))
 
 	// Public report form
-	reportHandler := handler.NewReportHandler(app.logger, app.schemaStore, app.sessionStore, app.mailer, web.Templates)
+	reportHandler := handler.NewReportHandler(app.logger, app.schemaStore, app.sessionStore, app.mailerQueue, web.Templates)
 	r.Get("/admin", reportHandler.RedirectToLogin)
 	r.Get("/login", reportHandler.RedirectToLogin)
 
@@ -57,7 +57,7 @@ func (app App) routes() http.Handler {
 		r.Post("/api/admin/report/apply", adminReportHandler.Apply)
 		r.Post("/api/admin/report/revert", adminReportHandler.Revert)
 
-		settingsHandler := handler.NewSettingsHandler(app.logger, app.settingsStore, app.mailer, web.Templates)
+		settingsHandler := handler.NewSettingsHandler(app.logger, app.settingsStore, app.mailerQueue, web.Templates)
 		r.Get("/admin/settings", settingsHandler.Page)
 		r.Get("/api/admin/settings", settingsHandler.Get)
 		r.Put("/api/admin/settings", settingsHandler.Update)
@@ -68,7 +68,7 @@ func (app App) routes() http.Handler {
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequireSuperAdmin())
 
-			usersHandler := handler.NewUsersHandler(app.userStore, app.sessionStore, app.mailer, app.config.AdminInviteBaseURL, web.Templates)
+			usersHandler := handler.NewUsersHandler(app.userStore, app.sessionStore, app.mailerQueue, app.config.AdminInviteBaseURL, web.Templates)
 			r.Get("/admin/users", usersHandler.Page)
 			r.Get("/api/admin/users", usersHandler.List)
 			r.Post("/api/admin/users", usersHandler.Invite)

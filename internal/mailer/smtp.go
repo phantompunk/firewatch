@@ -14,11 +14,13 @@ import (
 	"github.com/firewatch/internal/model"
 )
 
+// ReportSender sends form submission emails to assigned address.
 type ReportSender interface {
 	SendReport(body string) error
 	CanEncrypt() error
 }
 
+// InviteSender sends invitation emails to new users.
 type InviteSender interface {
 	SendInvite(to, inviteUrl string) error
 }
@@ -68,7 +70,9 @@ func New(cfg *Config) *Mailer {
 
 // Reconfigure updates the mailer with new settings.
 func (m *Mailer) Reconfigure(cfg *Config) {
+	m.mu.Lock()
 	m.cfg = cfg
+	m.mu.Unlock()
 }
 
 // formatMessage constructs the raw email message string from the Message struct.
@@ -83,13 +87,12 @@ func (m *Mailer) formatMessage(msg Message) string {
 	)
 }
 
-// send sends the email message using SMTP. It constructs the email headers and body, and then uses smtp.SendMail to send it.
+// send sends an email message over SMTP with mandatory STARTTLS.
 func (m *Mailer) send(msg Message) error {
-	m.mu.Lock()
+	m.mu.RLock()
 	cfg := m.cfg
-	m.mu.Unlock()
+	m.mu.RUnlock()
 
-	// Send via SMTP
 	auth := smtp.PlainAuth("", cfg.User, cfg.Pass, cfg.Host)
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 
@@ -99,8 +102,7 @@ func (m *Mailer) send(msg Message) error {
 	}
 	defer client.Close()
 
-	ok, _ := client.Extension("STARTTLS")
-	if !ok {
+	if ok, _ := client.Extension("STARTTLS"); !ok {
 		return fmt.Errorf("SMTP server does not support STARTTLS")
 	}
 
@@ -129,35 +131,35 @@ func (m *Mailer) send(msg Message) error {
 	}
 	defer wc.Close()
 
-	messageStr := m.formatMessage(msg)
-	if _, err := wc.Write([]byte(messageStr)); err != nil {
+	if _, err := wc.Write([]byte(m.formatMessage(msg))); err != nil {
 		return fmt.Errorf("write message: %w", err)
 	}
 
 	return nil
 }
 
+// sendEncrypted encrypts msg.Body with the configured PGP key then sends it.
 func (m *Mailer) sendEncrypted(msg Message) error {
-	m.mu.Lock()
-	cfg := m.cfg
-	m.mu.Unlock()
+	m.mu.RLock()
+	key := m.cfg.PGPPublicKey
+	m.mu.RUnlock()
 
-	if cfg.PGPPublicKey == "" {
+	if key == "" {
 		return fmt.Errorf("PGP public key is not configured")
 	}
 
-	// Encrypt the message body using the PGP public key
-	encrypted, err := encryptBody(cfg.PGPPublicKey, msg.Body)
+	encrypted, err := encryptBody(key, msg.Body)
 	if err != nil {
-		return fmt.Errorf("failed to encrypt message body: %w", err)
+		return fmt.Errorf("encrypt message body: %w", err)
 	}
 
 	msg.Body = encrypted
-	msg.IsHTML = false // Encrypted content should be sent as plain text
+	msg.IsHTML = false
 
 	return m.sendFn(msg)
 }
 
+// CanEncrypt validates that the configured PGP public key is non-empty and parseable.
 func (m *Mailer) CanEncrypt() error {
 	m.mu.RLock()
 	key := m.cfg.PGPPublicKey
@@ -168,7 +170,7 @@ func (m *Mailer) CanEncrypt() error {
 	}
 
 	keyring, err := openpgp.ReadArmoredKeyRing(strings.NewReader(key))
-	if err !=nil {
+	if err != nil {
 		return fmt.Errorf("invalid PGP public key: %w", err)
 	}
 
@@ -179,6 +181,7 @@ func (m *Mailer) CanEncrypt() error {
 	return nil
 }
 
+// encryptBody encrypts plainText for publicKey and returns an ASCII-armored PGP message.
 func encryptBody(publicKey, plainText string) (string, error) {
 	keyring, err := openpgp.ReadArmoredKeyRing(strings.NewReader(publicKey))
 	if err != nil {
@@ -215,20 +218,8 @@ func encryptBody(publicKey, plainText string) (string, error) {
 	return buf.String(), nil
 }
 
-// SendInvite emails an invitation link directly to the invitee.
-func (m *Mailer) SendInvite(toEmail, inviteURL string) error {
-	return m.sendFn(Message{
-		To:      []string{toEmail},
-		Subject: "You've been invited to Firewatch",
-		Body: fmt.Sprintf(
-			"You have been invited to access Firewatch.\n\nAccept your invitation:\n%s\n\nThis link expires in 48 hours.",
-			inviteURL,
-		),
-		IsHTML: false,
-	})
-}
-
-// Ping attempts to connect and authenticate with the SMTP server to verify configuration.
+// Ping connects and authenticates with the SMTP server to verify configuration.
+// It requires STARTTLS — consistent with the enforcement in send().
 func (m *Mailer) Ping() error {
 	m.mu.RLock()
 	cfg := m.cfg
@@ -243,10 +234,13 @@ func (m *Mailer) Ping() error {
 	}
 	defer client.Close()
 
-	if ok, _ := client.Extension("STARTTLS"); ok {
-		if err := client.StartTLS(&tls.Config{ServerName: m.cfg.Host, MinVersion: tls.VersionTLS12}); err != nil {
-			return fmt.Errorf("mailer ping: STARTTLS: %w", err)
-		}
+	if ok, _ := client.Extension("STARTTLS"); !ok {
+		return fmt.Errorf("SMTP server does not support STARTTLS")
+	}
+
+	tlsConfig := &tls.Config{ServerName: cfg.Host, MinVersion: tls.VersionTLS12}
+	if err := client.StartTLS(tlsConfig); err != nil {
+		return fmt.Errorf("mailer ping: STARTTLS: %w", err)
 	}
 
 	if err := client.Auth(auth); err != nil {
@@ -256,10 +250,27 @@ func (m *Mailer) Ping() error {
 	return nil
 }
 
-// SendReport sends a report email to the configured destination(s).
+// SendInvite emails an invitation link directly to the invitee.
+func (m *Mailer) SendInvite(toEmail, inviteURL string) error {
+	return m.sendFn(Message{
+		To:      []string{toEmail},
+		Subject: "You've been invited to Firewatch",
+		Body: fmt.Sprintf(
+			"You have been invited to access Firewatch.\n\nAccept your invitation:\n%s\n\nThis link expires in 48 hours.",
+			inviteURL,
+		),
+		IsHTML: false,
+	})
+}
+
+// SendReport encrypts body with PGP and sends it to the configured destination(s).
 func (m *Mailer) SendReport(body string) error {
+	m.mu.RLock()
+	to := m.cfg.To
+	m.mu.RUnlock()
+
 	return m.sendEncrypted(Message{
-		To:      m.cfg.To,
+		To:      to,
 		Subject: "Report from Firewatch",
 		Body:    body,
 		IsHTML:  false,
@@ -274,7 +285,7 @@ func NewConfigFromSettings(s *model.AppSettings) *Config {
 		User:         s.SMTPUser,
 		Pass:         s.SMTPPass,
 		FromName:     s.SMTPFromName,
-		FromAddress:  s.DestinationEmail,
+		FromAddress:  s.SMTPFromAddress,
 		To:           []string{s.DestinationEmail},
 		PGPPublicKey: s.PGPKey,
 	}
