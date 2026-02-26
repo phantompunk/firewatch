@@ -2,12 +2,14 @@ package app
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/firewatch/internal/handler"
 	"github.com/firewatch/internal/middleware"
 	"github.com/firewatch/internal/web"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
+	"golang.org/x/time/rate"
 )
 
 func (app App) routes() http.Handler {
@@ -28,17 +30,19 @@ func (app App) routes() http.Handler {
 
 	// Maintenance-guarded public routes
 	maintenanceMW := middleware.MaintenanceMode(app.settingsStore, web.Templates)
+	ratelimitMW := middleware.RateLimit(rate.Every(time.Minute/10), 5) // 10 requests per minute with burst of 5
 	r.Group(func(r chi.Router) {
 		r.Use(maintenanceMW)
 		r.Get("/", reportHandler.Form)
 		r.Get("/api/report", reportHandler.Get)
-		r.Post("/api/report", reportHandler.Submit)
+		r.With(ratelimitMW).Post("/api/report", reportHandler.Submit)
 	})
 
 	// Admin auth (public endpoints)
+	loginRatelimitMW := middleware.RateLimit(rate.Every(10*time.Minute/5), 5) // 5 login attempts per 10 minutes with burst of 5
 	authHandler := handler.NewAuthHandler(app.userStore, app.sessionStore, app.userStore, web.Templates, app.config.SecureCookies)
 	r.Get("/admin/login", authHandler.LoginPage)
-	r.Post("/api/admin/login", authHandler.Login)
+	r.With(loginRatelimitMW).Post("/api/admin/login", authHandler.Login)
 	r.Get("/accept-invite", authHandler.AcceptInvitePage)
 	r.Post("/api/accept-invite", authHandler.AcceptInvite)
 
@@ -53,7 +57,6 @@ func (app App) routes() http.Handler {
 		r.Get("/admin/report", adminReportHandler.Page)
 		r.Get("/api/admin/report", adminReportHandler.Get)
 		r.Put("/api/admin/report", adminReportHandler.Update)
-		// TODO: finish
 		r.Post("/api/admin/report/apply", adminReportHandler.Apply)
 		r.Post("/api/admin/report/revert", adminReportHandler.Revert)
 
