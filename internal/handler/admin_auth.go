@@ -31,6 +31,10 @@ type inviteStore interface {
 	AcceptInvite(ctx context.Context, inviteID, userID, username, email, passwordHash, role string) error
 }
 
+type loginPageData struct {
+	Error string
+}
+
 type acceptInvitePageData struct {
 	Token string
 	Email string
@@ -44,15 +48,16 @@ type AuthHandler struct {
 	invites       inviteStore
 	templates     *template.Template
 	secureCookies bool
+	sessionKey    []byte
 }
 
-func NewAuthHandler(users userGetterByIdentifier, sessions sessionCreatorDeleter, invites inviteStore, tmpl *template.Template, secureCookies bool) *AuthHandler {
-	return &AuthHandler{users: users, sessions: sessions, invites: invites, templates: tmpl, secureCookies: secureCookies}
+func NewAuthHandler(users userGetterByIdentifier, sessions sessionCreatorDeleter, invites inviteStore, tmpl *template.Template, secureCookies bool, sessionKey []byte) *AuthHandler {
+	return &AuthHandler{users: users, sessions: sessions, invites: invites, templates: tmpl, secureCookies: secureCookies, sessionKey: sessionKey}
 }
 
 // LoginPage renders the admin login form.
 func (h *AuthHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
-	if err := h.templates.ExecuteTemplate(w, "admin_login.html", nil); err != nil {
+	if err := h.templates.ExecuteTemplate(w, "admin_login.html", loginPageData{}); err != nil {
 		slog.Error("auth: template error", "err", err)
 	}
 }
@@ -67,10 +72,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	identifier := r.FormValue("identifier")
 	password := r.FormValue("password")
 
-	slog.Info("login attempt", "identifier", identifier)
-
-	renderLoginError := func() {
-		if err := h.templates.ExecuteTemplate(w, "admin_login.html", map[string]any{"Error": "Invalid credentials."}); err != nil {
+	renderLoginError := func(msg string) {
+		if err := h.templates.ExecuteTemplate(w, "admin_login.html", loginPageData{Error: msg}); err != nil {
 			slog.Error("auth: template error", "err", err)
 		}
 	}
@@ -87,15 +90,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil || !auth.Verify(hash, password) {
-		slog.Info("authentication failed", "identifier", identifier)
-		renderLoginError()
+		renderLoginError("Invalid credentials.")
 		return
 	}
 
 	if user.Status != model.StatusActive {
-		if err := h.templates.ExecuteTemplate(w, "admin_login.html", map[string]any{"Error": "Account is inactive."}); err != nil {
-			slog.Error("auth: template error", "err", err)
-		}
+		renderLoginError("Account is inactive.")
 		return
 	}
 
@@ -109,7 +109,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     appmw.SessionCookieName,
-		Value:    sessionID,
+		Value:    appmw.SignCookie(h.sessionKey, sessionID),
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   h.secureCookies,
@@ -124,7 +124,6 @@ func (h *AuthHandler) AcceptInvitePage(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	data := acceptInvitePageData{Token: token}
 
-	slog.Info("accept-invite page requested", "token", token)
 	if token != "" {
 		invite, err := h.invites.GetInviteByToken(r.Context(), token)
 		if err == nil {
@@ -171,8 +170,12 @@ func (h *AuthHandler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 		renderError("", "Username must be 64 characters or fewer.")
 		return
 	}
-	if password == "" || password != confirmPassword {
-		renderError("", "Passwords do not match or are empty.")
+	if len(password) < 12 {
+		renderError("", "Password must be at least 12 characters.")
+		return
+	}
+	if password != confirmPassword {
+		renderError("", "Passwords do not match.")
 		return
 	}
 
@@ -210,7 +213,7 @@ func (h *AuthHandler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     appmw.SessionCookieName,
-		Value:    sessionID,
+		Value:    appmw.SignCookie(h.sessionKey, sessionID),
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   h.secureCookies,
@@ -227,11 +230,14 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		_ = h.sessions.DeleteAllByUserID(r.Context(), userID)
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name:    appmw.SessionCookieName,
-		Value:   "",
-		Path:    "/",
-		MaxAge:  -1,
-		Expires: time.Unix(0, 0),
+		Name:     appmw.SessionCookieName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		Expires:  time.Unix(0, 0),
+		HttpOnly: true,
+		Secure:   h.secureCookies,
+		SameSite: http.SameSiteStrictMode,
 	})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

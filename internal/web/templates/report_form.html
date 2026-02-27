@@ -47,6 +47,12 @@
     {{end}}
     {{end}}
 
+    <div class="hp-field" aria-hidden="true">
+      <label for="_hp">Website</label>
+      <input type="text" id="_hp" name="_hp" tabindex="-1" autocomplete="off">
+    </div>
+    <input type="hidden" id="_t" name="_t" value="{{.FormTimestamp}}">
+
     <button type="submit">{{.Page.SubmitButtonLabel}}</button>
   </form>
   <div id="form-message" style="display:none"></div>
@@ -54,8 +60,9 @@
 <script>
 document.getElementById('report-form').addEventListener('submit', async function(e) {
   e.preventDefault();
-  const data = { fields: {} };
-  new FormData(this).forEach((v, k) => {
+  const fd = new FormData(this);
+  const data = { fields: {}, _hp: fd.get('_hp') || '', _t: parseInt(fd.get('_t') || '0', 10) };
+  fd.forEach((v, k) => {
     const m = k.match(/^fields\[(.+)\]$/);
     if (m) data.fields[m[1]] = v;
   });

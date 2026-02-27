@@ -2,7 +2,11 @@ package middleware
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
+	"strings"
 
 	"github.com/firewatch/internal/model"
 )
@@ -26,10 +30,38 @@ type userByIDer interface {
 	GetByID(ctx context.Context, id string) (*model.AdminUser, error)
 }
 
+// SignCookie returns "<sessionID>.<HMAC-SHA256-hex>" signed with key.
+// This is the value stored in the session cookie.
+func SignCookie(key []byte, sessionID string) string {
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(sessionID))
+	return sessionID + "." + hex.EncodeToString(mac.Sum(nil))
+}
+
+// verifyAndExtract validates the signed cookie value and returns the bare
+// session ID. Returns ("", false) if the signature is missing or invalid.
+func verifyAndExtract(key []byte, cookieValue string) (string, bool) {
+	dot := strings.LastIndex(cookieValue, ".")
+	if dot < 0 {
+		return "", false
+	}
+	sessionID := cookieValue[:dot]
+	sig := cookieValue[dot+1:]
+
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(sessionID))
+	expected := hex.EncodeToString(mac.Sum(nil))
+
+	if !hmac.Equal([]byte(sig), []byte(expected)) {
+		return "", false
+	}
+	return sessionID, true
+}
+
 // Session middleware validates the session cookie and populates the request
 // context with the user ID and role. Unauthenticated requests are redirected
 // to /admin/login.
-func Session(sessions SessionReader, users userByIDer) func(http.Handler) http.Handler {
+func Session(key []byte, sessions SessionReader, users userByIDer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			cookie, err := r.Cookie(SessionCookieName)
@@ -38,8 +70,13 @@ func Session(sessions SessionReader, users userByIDer) func(http.Handler) http.H
 				return
 			}
 
+			sessionID, ok := verifyAndExtract(key, cookie.Value)
+			if !ok {
+				http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
+				return
+			}
 
-			userID, err := sessions.GetUserID(r.Context(), cookie.Value)
+			userID, err := sessions.GetUserID(r.Context(), sessionID)
 			if err != nil {
 				http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
 				return

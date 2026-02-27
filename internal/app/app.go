@@ -17,6 +17,7 @@ import (
 	"github.com/firewatch/internal/crypto"
 	"github.com/firewatch/internal/db/migrations"
 	"github.com/firewatch/internal/mailer"
+	"github.com/firewatch/internal/model"
 	"github.com/firewatch/internal/store"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite"
@@ -58,14 +59,10 @@ func New() (*App, error) {
 	schemaStore := store.NewSchemaStore(pool)
 	sessionStore := store.NewSessionStore(pool)
 
-	encryptKey := make([]byte, 32)
-	copy(encryptKey, []byte(cfg.SettingsEncryptionKey)[:32])
-	crypter := crypto.New(encryptKey)
+	crypter := crypto.New(cfg.SettingsEncryptionKey)
 	settingsStore := store.NewSettingsStore(pool, crypter)
 
-	hmacKey := make([]byte, 32)
-	copy(hmacKey, []byte(cfg.EmailHMACKey)[:32])
-	userStore := store.NewUserStore(pool, crypter, hmacKey)
+	userStore := store.NewUserStore(pool, crypter, cfg.EmailHMACKey)
 
 	// TODO: force password reset on first login if seeded from env vars
 	auth.SeedFirstAdmin(ctx, userStore)
@@ -73,7 +70,11 @@ func New() (*App, error) {
 		slog.Warn("schema seed failed", "err", err)
 	}
 
-	s, _ := settingsStore.Load(ctx)
+	s, err := settingsStore.Load(ctx)
+	if err != nil {
+		slog.Warn("startup: could not load settings, starting with defaults (re-configure via Settings UI)", "err", err)
+		s = &model.AppSettings{}
+	}
 	m := mailer.New(mailer.NewConfigFromSettings(s))
 	q := mailer.NewQueue(m, time.Second, 64, 3)
 

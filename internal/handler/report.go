@@ -1,13 +1,14 @@
 package handler
 
 import (
-	"slices"
 	"context"
 	"encoding/json"
 	"html/template"
 	"log/slog"
 	"net/http"
+	"slices"
 	"sort"
+	"time"
 
 	"github.com/firewatch/internal/mailer"
 	"github.com/firewatch/internal/middleware"
@@ -28,11 +29,12 @@ type ReportHandler struct {
 }
 
 type reportFormData struct {
-	Page        model.PageLocale
-	Fields      []reportFieldView
-	Languages   []model.LangInfo
-	CurrentLang string
-	IsAdmin     bool
+	Page          model.PageLocale
+	Fields        []reportFieldView
+	Languages     []model.LangInfo
+	CurrentLang   string
+	IsAdmin       bool
+	FormTimestamp int64
 }
 
 type reportFieldView struct {
@@ -102,11 +104,12 @@ func (h *ReportHandler) Form(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := reportFormData{
-		Page:        schema.Page.Locale(lang),
-		Fields:      fieldViews,
-		Languages:   enabledLangs,
-		CurrentLang: lang,
-		IsAdmin:     isAdmin,
+		Page:          schema.Page.Locale(lang),
+		Fields:        fieldViews,
+		Languages:     enabledLangs,
+		CurrentLang:   lang,
+		IsAdmin:       isAdmin,
+		FormTimestamp: time.Now().Unix(),
 	}
 	if err := h.templates.ExecuteTemplate(w, "report_form.html", data); err != nil {
 		slog.Error("report: template error", "err", err)
@@ -143,9 +146,25 @@ func (h *ReportHandler) Submit(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SchemaVersion int               `json:"schemaVersion"`
 		Fields        map[string]string `json:"fields"`
+		Honeypot      string            `json:"_hp"`
+		Timestamp     int64             `json:"_t"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	// Honeypot: real users never see this field; bots fill it in.
+	if req.Honeypot != "" {
+		w.WriteHeader(http.StatusAccepted) // silent drop
+		return
+	}
+
+	// Timing: reject submissions that arrive too fast (bot) or with a stale
+	// token (replayed request). Silently drop both to avoid leaking the mechanism.
+	age := time.Now().Unix() - req.Timestamp
+	if age < 3 || age > 6*3600 {
+		w.WriteHeader(http.StatusAccepted) // silent drop
 		return
 	}
 

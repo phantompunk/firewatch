@@ -65,7 +65,7 @@ func (c *Crypter) Decrypt(ciphertext []byte) ([]byte, error) {
 		return nil, err
 	}
 	if len(ciphertext) < gcm.NonceSize() {
-		slog.Info("crypto: ciphertext too short to decrypt", "key", ciphertext)
+		slog.Error("crypto: ciphertext too short", "length", len(ciphertext), "nonce_size", gcm.NonceSize())
 		return nil, errors.New("crypto: ciphertext too short")
 	}
 	nonce, ciphertext := ciphertext[:gcm.NonceSize()], ciphertext[gcm.NonceSize():]

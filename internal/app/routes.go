@@ -16,6 +16,7 @@ func (app App) routes() http.Handler {
 	r := chi.NewRouter()
 	r.Use(chimw.RealIP)
 	r.Use(chimw.Recoverer)
+	r.Use(middleware.SecurityHeaders)
 
 	// Static files
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServerFS(web.StaticFS)))
@@ -40,14 +41,14 @@ func (app App) routes() http.Handler {
 
 	// Admin auth (public endpoints)
 	loginRatelimitMW := middleware.RateLimit(rate.Every(10*time.Minute/5), 5) // 5 login attempts per 10 minutes with burst of 5
-	authHandler := handler.NewAuthHandler(app.userStore, app.sessionStore, app.userStore, web.Templates, app.config.SecureCookies)
+	authHandler := handler.NewAuthHandler(app.userStore, app.sessionStore, app.userStore, web.Templates, app.config.SecureCookies, app.config.SessionSecret)
 	r.Get("/admin/login", authHandler.LoginPage)
 	r.With(loginRatelimitMW).Post("/api/admin/login", authHandler.Login)
 	r.Get("/accept-invite", authHandler.AcceptInvitePage)
 	r.Post("/api/accept-invite", authHandler.AcceptInvite)
 
 	// Protected admin routes
-	sessionMW := middleware.Session(app.sessionStore, app.userStore)
+	sessionMW := middleware.Session(app.config.SessionSecret, app.sessionStore, app.userStore)
 	r.Group(func(r chi.Router) {
 		r.Use(sessionMW)
 

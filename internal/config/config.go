@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -18,10 +17,15 @@ type Config struct {
 	// Database
 	DatabaseURL string
 
-	// Security
-	SessionSecret         string
-	SettingsEncryptionKey string
-	EmailHMACKey          string
+	// File paths to 32-byte binary key files.
+	SessionSecretFile         string
+	SettingsEncryptionKeyFile string
+	EmailHMACKeyFile          string
+
+	// Decoded key bytes — populated during Validate(), never set from env directly.
+	SessionSecret         []byte
+	SettingsEncryptionKey []byte
+	EmailHMACKey          []byte
 
 	// SMTP
 	SMTPHost              string
@@ -36,9 +40,6 @@ type Config struct {
 	AdminInviteBaseURL string
 
 	SecureCookies bool
-	Cors          struct {
-		TrustedOrigins []string
-	}
 }
 
 func Load() (*Config, error) {
@@ -52,9 +53,9 @@ func Load() (*Config, error) {
 	flag.StringVar(&cfg.Env, "env", getEnv("ENV", "development"), "Environment (development, production)")
 	flag.StringVar(&cfg.DatabaseURL, "database-url", getEnv("DATABASE_URL", ""), "PostgreSQL connection string")
 
-	cfg.SessionSecret = mustEnv("SESSION_SECRET")
-	cfg.SettingsEncryptionKey = mustEnv("SETTINGS_ENCRYPTION_KEY")
-	cfg.EmailHMACKey = mustEnv("EMAIL_HMAC_KEY")
+	cfg.SessionSecretFile = mustEnv("SESSION_SECRET_FILE")
+	cfg.SettingsEncryptionKeyFile = mustEnv("SETTINGS_ENCRYPTION_KEY_FILE")
+	cfg.EmailHMACKeyFile = mustEnv("EMAIL_HMAC_KEY_FILE")
 	cfg.SMTPHost = getEnv("SMTP_HOST", "")
 	cfg.SMTPPort = getEnv("SMTP_PORT", "587")
 	cfg.SMTPUser = getEnv("SMTP_USER", "")
@@ -68,16 +69,6 @@ func Load() (*Config, error) {
 
 	flag.Parse()
 
-
-	// Parse CORS trusted origins from comma-separated env var
-	if origins := getEnv("CORS_TRUSTED_ORIGINS", ""); origins != "" {
-		for _, origin := range strings.Split(origins, ",") {
-			if trimmed := strings.TrimSpace(origin); trimmed != "" {
-				cfg.Cors.TrustedOrigins = append(cfg.Cors.TrustedOrigins, trimmed)
-			}
-		}
-	}
-
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -90,24 +81,41 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("DATABASE_URL is required")
 	}
 
-	if len(c.SettingsEncryptionKey) < 32 {
-		return fmt.Errorf("SETTINGS_ENCRYPTION_KEY must be at least 32 characters")
+	sessionKey, err := loadKeyFile(c.SessionSecretFile, "SESSION_SECRET_FILE")
+	if err != nil {
+		return err
 	}
+	c.SessionSecret = sessionKey
 
-	if len(c.EmailHMACKey) < 32 {
-		return fmt.Errorf("EMAIL_HMAC_KEY must be at least 32 characters")
+	key, err := loadKeyFile(c.SettingsEncryptionKeyFile, "SETTINGS_ENCRYPTION_KEY_FILE")
+	if err != nil {
+		return err
 	}
+	c.SettingsEncryptionKey = key
 
-	if len(c.SessionSecret) < 16 {
-		return fmt.Errorf("SESSION_SECRET must be at least 16 characters")
+	hmacKey, err := loadKeyFile(c.EmailHMACKeyFile, "EMAIL_HMAC_KEY_FILE")
+	if err != nil {
+		return err
 	}
-	// if c.EncryptionSalt == "" {
-	// 	return fmt.Errorf("ENCRYPTION_SALT is required")
-	// }
-	// if len(c.EncryptionSalt) < 16 {
-	// 	return fmt.Errorf("ENCRYPTION_SALT must be at least 16 characters")
-	// }
+	c.EmailHMACKey = hmacKey
+
 	return nil
+}
+
+// loadKeyFile reads a binary key file and returns its contents.
+// The file must contain exactly 32 bytes.
+func loadKeyFile(path, envVar string) ([]byte, error) {
+	if path == "" {
+		return nil, fmt.Errorf("%s is required", envVar)
+	}
+	key, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading key file for %s (%q): %w", envVar, path, err)
+	}
+	if len(key) != 32 {
+		return nil, fmt.Errorf("%s key file must contain exactly 32 bytes (got %d)", envVar, len(key))
+	}
+	return key, nil
 }
 
 func (c *Config) IsDevelopment() bool {
