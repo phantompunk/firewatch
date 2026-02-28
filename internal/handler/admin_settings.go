@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/firewatch/internal/mailer"
 	appmw "github.com/firewatch/internal/middleware"
@@ -14,6 +15,47 @@ import (
 type adminSettingsPageData struct {
 	*model.AppSettings
 	IsSuperAdmin bool
+	SMTPPassSet  bool
+}
+
+// appSettingsResponse is the JSON shape returned by the Get endpoint.
+// SMTPPass is replaced by SMTPPassSet so the password never leaves the server.
+type appSettingsResponse struct {
+	DestinationEmail      string `json:"destinationEmail"`
+	EmailSubjectTemplate  string `json:"emailSubjectTemplate"`
+	SMTPHost              string `json:"smtpHost"`
+	SMTPPort              int    `json:"smtpPort"`
+	SMTPUser              string `json:"smtpUser"`
+	SMTPPassSet           bool   `json:"smtpPassSet"`
+	SMTPFromAddress       string `json:"smtpFromAddress"`
+	SMTPFromName          string `json:"smtpFromName"`
+	ReportRetentionPolicy string `json:"reportRetentionPolicy"`
+	MaintenanceMode       bool   `json:"maintenanceMode"`
+	PGPKey                string `json:"pgpKey"`
+	SMTPVerified          bool   `json:"smtpVerified"`
+	SMTPError             string `json:"smtpError"`
+	PGPVerified           bool   `json:"pgpVerified"`
+	PGPError              string `json:"pgpError"`
+}
+
+func settingsToResponse(s *model.AppSettings) appSettingsResponse {
+	return appSettingsResponse{
+		DestinationEmail:      s.DestinationEmail,
+		EmailSubjectTemplate:  s.EmailSubjectTemplate,
+		SMTPHost:              s.SMTPHost,
+		SMTPPort:              s.SMTPPort,
+		SMTPUser:              s.SMTPUser,
+		SMTPPassSet:           s.SMTPPass != "",
+		SMTPFromAddress:       s.SMTPFromAddress,
+		SMTPFromName:          s.SMTPFromName,
+		ReportRetentionPolicy: s.ReportRetentionPolicy,
+		MaintenanceMode:       s.MaintenanceMode,
+		PGPKey:                s.PGPKey,
+		SMTPVerified:          s.SMTPVerified,
+		SMTPError:             s.SMTPError,
+		PGPVerified:           s.PGPVerified,
+		PGPError:              s.PGPError,
+	}
 }
 
 type settingsStore interface {
@@ -44,6 +86,7 @@ func (h *SettingsHandler) Page(w http.ResponseWriter, r *http.Request) {
 	data := adminSettingsPageData{
 		AppSettings:  s,
 		IsSuperAdmin: appmw.IsSuperAdmin(r.Context()),
+		SMTPPassSet:  s.SMTPPass != "",
 	}
 	if err := h.templates.ExecuteTemplate(w, "admin_settings.html", data); err != nil {
 		slog.Error("settings: template error", "err", err)
@@ -58,10 +101,9 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.writeJSON(w, http.StatusOK, s, nil)
-	if err != nil {
+	// s.SMTPPass = "********"
+	if err = h.writeJSON(w, http.StatusOK, settingsToResponse(s), nil); err != nil {
 		h.serverErrorResponse(w, r, err)
-		return
 	}
 }
 
@@ -115,6 +157,11 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	s := &model.AppSettings{}
 	if err := h.readJSON(w, r, &s); err != nil {
 		h.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if isPrivatePGPKey(s.PGPKey) {
+		http.Error(w, "PGP private keys are not accepted — paste the public key only", http.StatusBadRequest)
 		return
 	}
 
@@ -192,4 +239,11 @@ func (h *SettingsHandler) TestEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+// isPrivatePGPKey reports whether the given string looks like a PGP private key.
+// Both modern and legacy (SECRET KEY) armour headers are checked.
+func isPrivatePGPKey(key string) bool {
+	return strings.Contains(key, "-----BEGIN PGP PRIVATE KEY BLOCK-----") ||
+		strings.Contains(key, "-----BEGIN PGP SECRET KEY BLOCK-----")
 }

@@ -62,6 +62,7 @@
             {{if and (not .PGPVerified) .PGPError}}<span class="settings-row-hint badge-err-text">{{.PGPError}}</span>{{end}}
           </label>
           <textarea id="s-pgp" name="pgpKey" rows="4" placeholder="-----BEGIN PGP PUBLIC KEY BLOCK-----">{{.PGPKey}}</textarea>
+          <span id="pgp-key-err" class="badge-err-text" style="display:none">Private key detected — paste the public key only.</span>
         </div>
         <div class="settings-row">
           <label class="settings-row-label" for="s-from">
@@ -110,7 +111,9 @@
         <div class="settings-row">
           <label class="settings-row-label" for="s-pass">
             Password
-            <span class="settings-row-hint">Leave blank to keep current value</span>
+            <span class="settings-row-hint">
+              {{if .SMTPPassSet}}Password configured — leave blank to keep current value{{else}}No password set{{end}}
+            </span>
           </label>
           <input type="password" id="s-pass" name="smtpPass" placeholder="••••••••">
         </div>
@@ -149,6 +152,17 @@
 </main>
 </div><!-- admin-shell -->
 <script>
+function isPrivatePGPKey(v) {
+  return v.includes('-----BEGIN PGP PRIVATE KEY BLOCK-----') ||
+         v.includes('-----BEGIN PGP SECRET KEY BLOCK-----');
+}
+
+document.getElementById('s-pgp').addEventListener('input', function() {
+  const isPrivate = isPrivatePGPKey(this.value);
+  document.getElementById('pgp-key-err').style.display = isPrivate ? '' : 'none';
+  document.querySelectorAll('button[type="submit"]').forEach(b => b.disabled = isPrivate);
+});
+
 function applyVerification(v) {
   const smtpBadge = document.getElementById('smtp-badge');
   const pgpBadge = document.getElementById('pgp-badge');
