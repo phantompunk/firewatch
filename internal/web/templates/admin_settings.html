@@ -119,8 +119,8 @@
         </div>
       </div>
       <div class="settings-card-footer">
-        <button type="button" id="btn-test-email">Send Test Email</button>
-        <span id="test-email-result" class="settings-feedback"></span>
+        <button type="button" id="btn-test-email" disabled>Send Test Email</button>
+        <span id="test-email-result" class="settings-feedback">Save settings first.</span>
       </div>
     </div>
 
@@ -186,6 +186,17 @@ function applyVerification(v) {
   }
 }
 
+function setTestEmailReady(ready) {
+  const btn = document.getElementById('btn-test-email');
+  const el = document.getElementById('test-email-result');
+  btn.disabled = !ready;
+  if (!ready) { el.textContent = 'Save settings first.'; el.className = 'settings-feedback'; }
+  else { el.textContent = ''; el.className = 'settings-feedback'; }
+}
+
+// Any change to the form marks it dirty and locks the test button until saved.
+document.getElementById('settings-form').addEventListener('input', () => setTestEmailReady(false));
+
 document.getElementById('settings-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));
@@ -200,6 +211,7 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
   if (r.ok) {
     const v = await r.json();
     applyVerification(v);
+    setTestEmailReady(true);
     el.textContent = 'Saved.';
     el.className = 'settings-feedback feedback-ok';
   } else {
@@ -210,17 +222,10 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
 });
 
 document.getElementById('btn-test-email').addEventListener('click', async () => {
-  const form = document.getElementById('settings-form');
-  const data = Object.fromEntries(new FormData(form));
-  data.smtpPort = parseInt(data.smtpPort, 10) || 0;
-  data.maintenanceMode = !!form.querySelector('[name="maintenanceMode"]').checked;
   const el = document.getElementById('test-email-result');
   el.textContent = 'Sending…';
-  const r = await fetch('/api/admin/settings/test-email', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
+  el.className = 'settings-feedback';
+  const r = await fetch('/api/admin/settings/test-email', { method: 'POST' });
   el.textContent = r.ok ? 'Sent!' : 'Failed.';
   el.className = 'settings-feedback ' + (r.ok ? 'feedback-ok' : 'feedback-err');
 });

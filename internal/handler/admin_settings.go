@@ -214,25 +214,15 @@ func (h *SettingsHandler) Apply(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// TestEmail sends a test ping using a temporary mailer built from the request
-// body. The live mailer is never mutated.
+// TestEmail sends a test ping using the saved settings.
+// No credentials are accepted from the client — the stored values are always used.
 func (h *SettingsHandler) TestEmail(w http.ResponseWriter, r *http.Request) {
-	current := &model.AppSettings{}
-	if err := h.readJSON(w, r, &current); err != nil {
+	s, err := h.settings.Load(r.Context())
+	if err != nil {
 		h.serverErrorResponse(w, r, err)
 		return
 	}
-
-	if current.SMTPPass == "" {
-		saved, err := h.settings.Load(r.Context())
-		if err != nil {
-			h.serverErrorResponse(w, r, err)
-			return
-		}
-		current.SMTPPass = saved.SMTPPass
-	}
-
-	tmp := mailer.New(mailer.NewConfigFromSettings(current))
+	tmp := mailer.New(mailer.NewConfigFromSettings(s))
 	if err := tmp.Ping(); err != nil {
 		h.logger.Error("settings: test ping failed", "err", err)
 		http.Error(w, "Send failed: "+err.Error(), http.StatusBadGateway)
