@@ -7,6 +7,9 @@ services:
     env_file: .env.docker
     volumes:
       - firewatch_data:/data
+      - ./secrets/session_secret:/run/secrets/session_secret:ro
+      - ./secrets/settings_encryption_key:/run/secrets/settings_encryption_key:ro
+      - ./secrets/email_hmac_key:/run/secrets/email_hmac_key:ro
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:8080/health"]
       interval: 10s
