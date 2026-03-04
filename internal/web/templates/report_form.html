@@ -8,30 +8,49 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 </head>
 <body>
+<script>
+  (function() {
+    var t = localStorage.getItem('theme');
+    if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  })();
+</script>
 <main class="form-container">
+  <div class="form-topbar">
+    <h1 class="form-title">{{.Page.Title}}</h1>
+    <div class="form-topbar-controls">
+      {{if gt (len .Languages) 1}}
+      <nav class="lang-toggle">
+        {{range .Languages}}
+        <a href="?lang={{.Code}}" class="lang-btn{{if eq .Code $.CurrentLang}} active{{end}}">{{.Code | upper}}</a>
+        {{end}}
+      </nav>
+      {{end}}
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme" type="button">
+        <span class="theme-icon-light">&#9790;</span>
+        <span class="theme-icon-dark">&#9788;</span>
+      </button>
+    </div>
+  </div>
+  </div>
+
   <header class="form-header">
-    <h1>{{.Page.Title}}</h1>
     {{if .Page.Subtitle}}<p class="subtitle">{{.Page.Subtitle}}</p>{{end}}
   </header>
-
-  {{if gt (len .Languages) 1}}
-  <nav class="lang-toggle">
-    {{range .Languages}}
-    <a href="?lang={{.Code}}" class="lang-btn{{if eq .Code $.CurrentLang}} active{{end}}">{{.Name}}</a>
-    {{end}}
-  </nav>
-  {{end}}
 
   <form id="report-form">
     {{range .Fields}}
     {{if eq .Type "accordion"}}
     <details class="field-group accordion-field">
       <summary>{{.Label}}</summary>
-      {{if .Description}}<p>{{.Description}}</p>{{end}}
+      {{if .Description}}
+      <ul class="accordion-checklist">
+        {{range splitLines .Description}}<li>{{.}}</li>{{end}}
+      </ul>
+      {{end}}
     </details>
     {{else}}
     <section class="field-group">
-      <h2 class="field-label">{{.Label}}{{if .Required}} <span class="required">*</span>{{end}}</h2>
+      <h2 class="field-label">{{if .Prefix}}<span class="field-prefix">{{.Prefix}}</span>{{end}}{{.Label}}{{if .Required}} <span class="required">*</span>{{end}}</h2>
       {{if .Description}}<p class="field-desc">{{.Description}}</p>{{end}}
       {{if eq .Type "textarea"}}
       <textarea id="{{.ID}}" name="fields[{{.ID}}]" placeholder="{{.Placeholder}}"{{if .Required}} required{{end}} rows="3"></textarea>
@@ -58,6 +77,17 @@
   <div id="form-message" style="display:none"></div>
 </main>
 <script>
+document.getElementById('theme-toggle').addEventListener('click', function() {
+  var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if (isLight) {
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.removeItem('theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('theme', 'light');
+  }
+});
+
 document.getElementById('report-form').addEventListener('submit', async function(e) {
   e.preventDefault();
   const fd = new FormData(this);

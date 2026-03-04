@@ -6,6 +6,7 @@
   <title>Report Form Editor — Firewatch</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script>(function(){var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
   <script src="/static/sortable.min.js"></script>
   <script src="/static/alpine.min.js" defer></script>
 </head>
@@ -79,11 +80,21 @@
                :class="{ selected: selectedId === field.id && !preview }"
                :data-field-id="field.id"
                @click="!preview && selectItem(field.id)">
-            <div class="drag-handle canvas-drag-handle">&#10303;</div>
+            <div class="canvas-drag-handle" title="Drag to reorder">
+              <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor" aria-hidden="true">
+                <circle cx="2.5" cy="3"  r="1.5"/>
+                <circle cx="7.5" cy="3"  r="1.5"/>
+                <circle cx="2.5" cy="8"  r="1.5"/>
+                <circle cx="7.5" cy="8"  r="1.5"/>
+                <circle cx="2.5" cy="13" r="1.5"/>
+                <circle cx="7.5" cy="13" r="1.5"/>
+              </svg>
+            </div>
             <section class="field-group canvas-field-group">
               <template x-if="field.type !== 'accordion'">
                 <div>
                   <h2 class="field-label">
+                    <span class="field-prefix" x-show="field.prefix" x-text="field.prefix"></span>
                     <span x-text="field.i18n[editingLang]?.label || field.i18n['en']?.label || ''"></span>
                     <template x-if="field.required"><span class="required"> *</span></template>
                   </h2>
@@ -186,6 +197,10 @@
           <label>Type</label>
           <input type="text" disabled
                  :value="{ text: 'Short Text', textarea: 'Long Text', accordion: 'Accordion' }[selectedField.type]">
+        </div>
+        <div class="inspector-field">
+          <label>Prefix Letter</label>
+          <input type="text" x-model="selectedField.prefix" maxlength="3" placeholder="e.g. S">
         </div>
         <div class="inspector-field">
           <label>Label</label>
@@ -347,37 +362,63 @@ function formEditor(initialSchema) {
         group: { name: 'canvas', pull: 'clone', put: false },
         sort: false,
         animation: 150,
+        delay: 100,
+        delayOnTouchOnly: true,
       });
 
       Sortable.create(document.getElementById('canvas-fields'), {
         group: { name: 'canvas', pull: true, put: true },
-        handle: '.drag-handle',
+        handle: '.canvas-drag-handle',
         animation: 150,
         ghostClass: 'canvas-drop-ghost',
+        chosenClass: 'canvas-chosen',
+        dragClass: 'canvas-dragging',
+        scroll: true,
+        bubbleScroll: true,
+        delay: 100,
+        delayOnTouchOnly: true,
+
         onAdd: (evt) => {
           const type = evt.item.dataset.type;
           const idx = evt.newIndex;
           evt.item.remove();
           const f = this._makeField(type);
-          const fields = [...this.schema.fields];
-          // Assign base order so all language fallbacks work correctly.
-          f.order = idx + 1;
-          fields.splice(idx, 0, f);
-          this.schema.fields = fields.map((field, i) => ({ ...field, order: i + 1 }));
+          // Splice into the current sorted visual order, then reassign all base orders
+          // and per-editing-language orders so everything stays in sync.
+          const sorted = [...this.sortedFields];
+          sorted.splice(idx, 0, f);
+          // Rebuild schema.fields in the new order with consecutive base orders.
+          const newFields = sorted.map((field, i) => {
+            const updated = { ...field, order: i + 1 };
+            const langs = this.schema.languages || ['en'];
+            langs.forEach(lang => {
+              if (!updated.i18n[lang]) {
+                updated.i18n[lang] = { label: '', description: '', placeholder: '', order: i + 1 };
+              } else {
+                updated.i18n[lang] = { ...updated.i18n[lang], order: i + 1 };
+              }
+            });
+            return updated;
+          });
+          this.schema.fields = newFields;
           this.$nextTick(() => this.selectItem(f.id));
         },
-        onEnd: () => {
-          // Update per-language order based on the new DOM order.
+
+        onEnd: (evt) => {
+          // No-op if the item was dropped back in the same position.
+          if (evt.oldIndex === evt.newIndex) return;
+          // Read the new visual order from the DOM and update both the base
+          // field.order and the per-language i18n order so they stay in sync.
           const ids = [...document.querySelectorAll('#canvas-fields [data-field-id]')]
             .map(el => el.dataset.fieldId);
           ids.forEach((id, idx) => {
             const f = this.schema.fields.find(f => f.id === id);
-            if (f) {
-              if (!f.i18n[this.editingLang]) {
-                f.i18n[this.editingLang] = { label: '', description: '', placeholder: '', order: idx + 1 };
-              } else {
-                f.i18n[this.editingLang].order = idx + 1;
-              }
+            if (!f) return;
+            f.order = idx + 1;
+            if (!f.i18n[this.editingLang]) {
+              f.i18n[this.editingLang] = { label: '', description: '', placeholder: '', order: idx + 1 };
+            } else {
+              f.i18n[this.editingLang].order = idx + 1;
             }
           });
           this.markDirty();

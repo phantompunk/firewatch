@@ -1,6 +1,7 @@
 {{define "base"}}<!DOCTYPE html>
 <html lang="en">
 <head>
+<script>(function(){var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{block "title" .}}Firewatch{{end}}</title>
@@ -24,8 +25,12 @@
     {{end}}
   </div>
   <div class="sidebar-bottom">
-    <a href="/admin/help" class="sidebar-link">Help</a>
-    <a href="/" target="_blank" class="sidebar-live-link">&#8599; View Live Page</a>
+<a href="/" target="_blank" class="sidebar-live-link">&#8599; View Live Page</a>
+    <div class="theme-seg" id="theme-seg" role="group" aria-label="Color theme">
+      <button class="theme-seg-btn" data-theme-val="" type="button">System</button>
+      <button class="theme-seg-btn" data-theme-val="light" type="button">Light</button>
+      <button class="theme-seg-btn" data-theme-val="dark" type="button">Dark</button>
+    </div>
     <form method="POST" action="/api/admin/logout">
       <button type="submit" class="sidebar-logout-btn">Log Out</button>
     </form>
@@ -35,5 +40,24 @@
   document.querySelectorAll('.sidebar-link').forEach(function(a) {
     if (a.getAttribute('href') === location.pathname) a.classList.add('active');
   });
+  (function() {
+    var seg = document.getElementById('theme-seg');
+    var current = localStorage.getItem('theme') || '';
+    seg.querySelectorAll('.theme-seg-btn').forEach(function(btn) {
+      if (btn.dataset.themeVal === current) btn.classList.add('active');
+      btn.addEventListener('click', function() {
+        var val = this.dataset.themeVal;
+        seg.querySelectorAll('.theme-seg-btn').forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+        if (val) {
+          document.documentElement.setAttribute('data-theme', val);
+          localStorage.setItem('theme', val);
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          localStorage.removeItem('theme');
+        }
+      });
+    });
+  })();
 </script>
 {{end}}

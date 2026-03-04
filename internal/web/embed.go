@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io/fs"
 	"log/slog"
+	"strings"
 )
 
 //go:embed static
@@ -28,7 +29,20 @@ func init() {
 		panic(err)
 	}
 
-	Templates, err = template.New("").ParseFS(templateFiles,
+	Templates, err = template.New("").Funcs(template.FuncMap{
+		// splitLines splits a string on newlines, dropping blank lines.
+		// Used by accordion fields to render each line as a checklist item.
+		"upper": strings.ToUpper,
+		"splitLines": func(s string) []string {
+			var lines []string
+			for _, l := range strings.Split(s, "\n") {
+				if t := strings.TrimSpace(l); t != "" {
+					lines = append(lines, t)
+				}
+			}
+			return lines
+		},
+	}).ParseFS(templateFiles,
 		"templates/*.html",
 		"templates/partials/*.html",
 	)

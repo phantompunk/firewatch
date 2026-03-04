@@ -41,6 +41,7 @@ type reportFieldView struct {
 	ID          string
 	Type        string
 	Required    bool
+	Prefix      string
 	Options     []string
 	Label       string
 	Description string
@@ -81,6 +82,7 @@ func (h *ReportHandler) Form(w http.ResponseWriter, r *http.Request) {
 			ID:          f.ID,
 			Type:        f.Type,
 			Required:    f.Required,
+			Prefix:      f.Prefix,
 			Options:     f.Options,
 			Label:       locale.Label,
 			Description: locale.Description,
