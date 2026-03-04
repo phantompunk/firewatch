@@ -23,7 +23,7 @@ dev:
 ## up: Docker compose up
 up:
 	@echo "Starting Docker environment..."
-	@docker-compose --env-file .env.docker up -d --build
+	@docker-compose up -d --build
 
 ## down: Docker compose down
 down:
@@ -38,12 +38,12 @@ build:
 ## clean: Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
-	@rm -rf bin/* tmp/*
+	@rm -rf bin/* tmp/main
 
-## secrets: Generate local secret key files for Docker
+## secrets: Generate local secret files in ./tmp/ for local Docker
 secrets:
-		@mkdir -p secrets
-		@[ -f secrets/session_secret ]					|| openssl rand -out secrets/session_secret 32
-		@[ -f secrets/settings_encryption_key ] || openssl rand -out secrets/settings_encryption_key 32
-		@[ -f secrets/email_hmac_key ]					|| openssl rand -out secrets/email_hmac_key 32
-		@echo "Secret files ready in ./secrets/"
+	@mkdir -p tmp
+	@[ -f tmp/session_secret ]             || openssl rand -out tmp/session_secret 32
+	@[ -f tmp/settings_encryption_key ]    || openssl rand -out tmp/settings_encryption_key 32
+	@[ -f tmp/email_hmac_key ]             || openssl rand -out tmp/email_hmac_key 32
+	@echo "Secret files ready in ./tmp/"

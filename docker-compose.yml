@@ -1,15 +1,24 @@
+secrets:
+  session_secret:
+    external: true
+  settings_encryption_key:
+    external: true
+  email_hmac_key:
+    external: true
+
 services:
   app:
     build: .
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     env_file: .env.docker
+    secrets:
+      - session_secret
+      - settings_encryption_key
+      - email_hmac_key
     volumes:
       - firewatch_data:/data
-      - ./secrets/session_secret:/run/secrets/session_secret:ro
-      - ./secrets/settings_encryption_key:/run/secrets/settings_encryption_key:ro
-      - ./secrets/email_hmac_key:/run/secrets/email_hmac_key:ro
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:8080/health"]
       interval: 10s
