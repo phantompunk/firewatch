@@ -12,7 +12,7 @@ FROM alpine:3.19 AS final
 
 WORKDIR /app
 
-RUN apk add --no-cache su-exec \
+RUN apk add --no-cache su-exec sqlite \
     && adduser -D appuser \
     && mkdir -p /data && chown appuser:appuser /data
 
