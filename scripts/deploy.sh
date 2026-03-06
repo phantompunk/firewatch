@@ -303,7 +303,7 @@ ok "Firewatch is running"
 cat > /etc/systemd/system/firewatch.service <<EOF
 [Unit]
 Description=Firewatch
-Documentation=https://github.com/your-org/firewatch
+Documentation=https://github.com/phantompunk/firewatch
 After=docker.service network-online.target
 Wants=network-online.target
 Requires=docker.service
@@ -328,9 +328,17 @@ systemctl enable --now caddy
 caddy reload --config /etc/caddy/Caddyfile
 ok "Caddy started → https://${DOMAIN}"
 
-# ── Backup cron ───────────────────────────────────────────────────────────────
-CRON_JOB="0 2 * * * bash $REPO_DIR/scripts/backup.sh >> /var/log/firewatch-backup.log 2>&1"
-if crontab -l 2>/dev/null | grep -qF "backup.sh"; then
+# ── Backup scripts ────────────────────────────────────────────────────────────
+SCRIPTS_BASE_URL="https://raw.githubusercontent.com/phantompunk/firewatch/main/scripts"
+
+say "Fetching backup and restore scripts..."
+curl -fsSL "$SCRIPTS_BASE_URL/backup.sh"  -o /usr/local/bin/firewatch-backup
+curl -fsSL "$SCRIPTS_BASE_URL/restore.sh" -o /usr/local/bin/firewatch-restore
+chmod +x /usr/local/bin/firewatch-backup /usr/local/bin/firewatch-restore
+ok "firewatch-backup and firewatch-restore installed to /usr/local/bin/"
+
+CRON_JOB="0 2 * * * firewatch-backup >> /var/log/firewatch-backup.log 2>&1"
+if crontab -l 2>/dev/null | grep -qF "firewatch-backup"; then
   skip "Backup cron job already registered"
 else
   (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -

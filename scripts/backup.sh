@@ -10,7 +10,6 @@
 set -euo pipefail
 
 # ── Config ────────────────────────────────────────────────────────────────────
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/firewatch}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 CONTAINER="${CONTAINER_NAME:-firewatch-app-1}"
@@ -19,11 +18,14 @@ TIMESTAMP="$(date -u '+%Y%m%dT%H%M%SZ')"
 BACKUP_FILE="$BACKUP_DIR/firewatch-$TIMESTAMP.db"
 COMPRESSED="$BACKUP_FILE.gz"
 
-# Alert email — reads from .env.docker if available, falls back to blank
+# Alert email — check common locations for .env.docker
 ALERT_EMAIL=""
-if [[ -f "$REPO_DIR/.env.docker" ]]; then
-  ALERT_EMAIL="$(grep -E '^DESTINATION_EMAIL=' "$REPO_DIR/.env.docker" | cut -d= -f2- | tr -d '[:space:]')"
-fi
+for env_file in /opt/firewatch/.env.docker /etc/firewatch/.env.docker; do
+  if [[ -f "$env_file" ]]; then
+    ALERT_EMAIL="$(grep -E '^DESTINATION_EMAIL=' "$env_file" | cut -d= -f2- | tr -d '[:space:]')"
+    break
+  fi
+done
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 log()  { echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ')  $*"; }
