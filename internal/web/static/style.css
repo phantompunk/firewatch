@@ -438,6 +438,14 @@ button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
   padding: 0.4rem 0.75rem;
 }
 .sidebar-logout-btn:hover { color: var(--color-text); border-color: var(--color-text); transform: none; }
+.sidebar-version {
+  display: block;
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Admin content area */
 .admin-content {

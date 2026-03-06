@@ -6,6 +6,8 @@ import (
 	"io/fs"
 	"log/slog"
 	"strings"
+
+	"github.com/firewatch/internal/buildinfo"
 )
 
 //go:embed static
@@ -29,7 +31,10 @@ func init() {
 		panic(err)
 	}
 
+	version, commit := buildinfo.Version()
 	Templates, err = template.New("").Funcs(template.FuncMap{
+		"appVersion": func() string { return version },
+		"appCommit":  func() string { return commit },
 		// splitLines splits a string on newlines, dropping blank lines.
 		// Used by accordion fields to render each line as a checklist item.
 		"upper": strings.ToUpper,
