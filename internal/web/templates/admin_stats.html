@@ -1,0 +1,114 @@
+{{define "admin_stats.html"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stats — Firewatch</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="admin-shell">
+{{template "admin_nav" .}}
+<main class="admin-content admin-main">
+
+  <div class="stats-topbar">
+    <h1>Stats</h1>
+    <span class="stats-note">Mock data — real analytics coming soon</span>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="stats-cards">
+    <div class="stat-card">
+      <div class="stat-card-label">Total Reports</div>
+      <div class="stat-card-value">{{.TotalReports}}</div>
+      <div class="stat-card-sub">all time</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-label">This Month</div>
+      <div class="stat-card-value">{{.ReportsThisMonth}}</div>
+      <div class="stat-card-sub">February 2026</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-label">This Week</div>
+      <div class="stat-card-value">{{.ReportsThisWeek}}</div>
+      <div class="stat-card-sub">Mon – Sun</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-label">Today</div>
+      <div class="stat-card-value">{{.ReportsToday}}</div>
+      <div class="stat-card-sub">{{.LastSubmission}}</div>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+
+    <!-- Activity bar chart -->
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <h2>Daily Activity — Last 7 Days</h2>
+      </div>
+      <div class="stats-bar-chart">
+        {{range .RecentActivity}}
+        <div class="stats-bar-col">
+          <div class="stats-bar-wrap">
+            <div class="stats-bar-fill" style="height: {{.BarHeight}}px" title="{{.Count}} reports"></div>
+          </div>
+          <div class="stats-bar-count">{{.Count}}</div>
+          <div class="stats-bar-label">{{.Weekday}}</div>
+          <div class="stats-bar-date">{{.Date}}</div>
+        </div>
+        {{end}}
+      </div>
+    </div>
+
+    <!-- Field completion -->
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <h2>Field Completion Rate</h2>
+      </div>
+      <div class="stats-field-list">
+        {{range .TopFields}}
+        <div class="stats-field-row">
+          <div class="stats-field-name">{{.Name}}</div>
+          <div class="stats-field-bar-wrap">
+            <div class="stats-field-bar" style="width: {{.Pct}}%"></div>
+          </div>
+          <div class="stats-field-pct">{{.Pct}}%</div>
+        </div>
+        {{end}}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Summary row -->
+  <div class="settings-card stats-summary-card">
+    <div class="settings-card-header">
+      <h2>Summary</h2>
+    </div>
+    <div class="stats-summary-rows">
+      <div class="stats-summary-row">
+        <span class="stats-summary-label">Average reports per day</span>
+        <span class="stats-summary-value">{{printf "%.1f" .AvgPerDay}}</span>
+      </div>
+      <div class="stats-summary-row">
+        <span class="stats-summary-label">Last submission</span>
+        <span class="stats-summary-value">{{.LastSubmission}}</span>
+      </div>
+      <div class="stats-summary-row">
+        <span class="stats-summary-label">Busiest day this week</span>
+        <span class="stats-summary-value">Wednesday (9 reports)</span>
+      </div>
+      <div class="stats-summary-row">
+        <span class="stats-summary-label">Most completed field</span>
+        <span class="stats-summary-value">Location (95%)</span>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div><!-- admin-shell -->
+</body>
+</html>
+{{end}}

@@ -54,6 +54,9 @@ func (app App) routes() http.Handler {
 
 		r.Post("/api/admin/logout", authHandler.Logout)
 
+		statsHandler := handler.NewStatsHandler(app.logger, web.Templates)
+		r.Get("/admin/stats", statsHandler.Page)
+
 		adminReportHandler := handler.NewAdminReportHandler(app.logger, app.schemaStore, web.Templates)
 		r.Get("/admin/report", adminReportHandler.Page)
 		r.Get("/api/admin/report", adminReportHandler.Get)
