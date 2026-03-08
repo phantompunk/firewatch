@@ -78,11 +78,15 @@ func (h *ReportHandler) Form(w http.ResponseWriter, r *http.Request) {
 	fieldViews := make([]reportFieldView, len(fields))
 	for i, f := range fields {
 		locale := f.Locale(lang)
+		prefix := locale.Prefix
+		if prefix == "" {
+			prefix = f.Prefix
+		}
 		fieldViews[i] = reportFieldView{
 			ID:          f.ID,
 			Type:        f.Type,
 			Required:    f.Required,
-			Prefix:      f.Prefix,
+			Prefix:      prefix,
 			Options:     f.Options,
 			Label:       locale.Label,
 			Description: locale.Description,

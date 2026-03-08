@@ -101,7 +101,6 @@ func generateTestKey(t *testing.T) (publickey, privatekey string) {
 	var pubBuf, privBuf strings.Builder
 	pubWriter, _ := armor.Encode(&pubBuf, "PGP PUBLIC KEY BLOCK", nil)
 	entity.Serialize(pubWriter) //nolint:errcheck
-
 	pubWriter.Close()
 
 	privWriter, _ := armor.Encode(&privBuf, "PGP PRIVATE KEY BLOCK", nil)
