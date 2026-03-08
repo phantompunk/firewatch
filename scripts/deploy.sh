@@ -257,7 +257,7 @@ ok ".env.docker written"
 cat > "$REPO_DIR/docker-compose.yml" <<EOF
 services:
   app:
-    build: .
+    image: ghcr.io/phantompunk/firewatch:latest
     restart: unless-stopped
     ports:
       - "0.0.0.0:8080:8080"
@@ -276,7 +276,7 @@ services:
 volumes:
   firewatch_data:
 EOF
-ok "docker-compose.yml updated (bound to 127.0.0.1)"
+ok "docker-compose.yml written"
 
 # Caddyfile
 # Security headers are set by the Go app middleware; only strip Server here.
@@ -294,9 +294,10 @@ ok "Caddyfile written → /etc/caddy/Caddyfile"
 # ── Start everything ──────────────────────────────────────────────────────────
 section "Step 5 of 5  ·  Starting services"
 
-say "Building and starting Firewatch (this takes a minute)..."
+say "Pulling latest Firewatch image..."
+docker pull ghcr.io/phantompunk/firewatch:latest
 cd "$REPO_DIR"
-docker compose up -d --build
+docker compose up -d
 ok "Firewatch is running"
 
 # Systemd unit so the containers come back after a reboot
