@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -40,6 +41,11 @@ type Config struct {
 	AdminInviteBaseURL string
 
 	SecureCookies bool
+
+	// TrustedProxy is the CIDR of a trusted reverse proxy (e.g. 127.0.0.1/32).
+	// When set, X-Real-IP / X-Forwarded-For are trusted only from that range.
+	// Nil means no proxy is trusted and the raw TCP connection IP is always used.
+	TrustedProxy *net.IPNet
 }
 
 func Load() (*Config, error) {
@@ -66,6 +72,14 @@ func Load() (*Config, error) {
 	cfg.ReportRetentionPolicy = getEnv("REPORT_RETENTION_POLICY", "30d")
 	cfg.AdminInviteBaseURL = getEnv("ADMIN_INVITE_BASE_URL", "")
 	cfg.SecureCookies = getEnv("SECURE_COOKIES", "false") == "true"
+
+	if cidr := getEnv("TRUSTED_PROXY", ""); cidr != "" {
+		_, network, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid TRUSTED_PROXY CIDR %q: %w", cidr, err)
+		}
+		cfg.TrustedProxy = network
+	}
 
 	flag.Parse()
 

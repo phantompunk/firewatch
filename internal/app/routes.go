@@ -14,7 +14,6 @@ import (
 
 func (app App) routes() http.Handler {
 	r := chi.NewRouter()
-	r.Use(chimw.RealIP)
 	r.Use(chimw.Recoverer)
 	r.Use(middleware.SecurityHeaders)
 	r.Use(middleware.CSP)
@@ -32,7 +31,7 @@ func (app App) routes() http.Handler {
 
 	// Maintenance-guarded public routes
 	maintenanceMW := middleware.MaintenanceMode(app.settingsStore, web.Templates)
-	ratelimitMW := middleware.RateLimit(rate.Every(time.Minute/10), 5) // 10 requests per minute with burst of 5
+	ratelimitMW := middleware.RateLimit(rate.Every(time.Minute/10), 5, app.config.TrustedProxy) // 10 requests per minute with burst of 5
 	r.Group(func(r chi.Router) {
 		r.Use(maintenanceMW)
 		r.Get("/", reportHandler.Form)
@@ -41,7 +40,7 @@ func (app App) routes() http.Handler {
 	})
 
 	// Admin auth (public endpoints)
-	loginRatelimitMW := middleware.RateLimit(rate.Every(10*time.Minute/5), 5) // 5 login attempts per 10 minutes with burst of 5
+	loginRatelimitMW := middleware.RateLimit(rate.Every(10*time.Minute/5), 5, app.config.TrustedProxy) // 5 login attempts per 10 minutes with burst of 5
 	authHandler := handler.NewAuthHandler(app.userStore, app.sessionStore, app.userStore, web.Templates, app.config.SecureCookies, app.config.SessionSecret)
 	r.Get("/admin/login", authHandler.LoginPage)
 	r.With(loginRatelimitMW).Post("/api/admin/login", authHandler.Login)
