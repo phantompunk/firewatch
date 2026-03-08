@@ -63,6 +63,7 @@ type Querier interface {
 	ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, error)
 	MarkInviteUsed(ctx context.Context, id string) error
 	PromoteLatestDraft(ctx context.Context, updatedBy sql.NullString) error
+	SetMustChangePassword(ctx context.Context, arg SetMustChangePasswordParams) error
 	UpdateAdminUserLastLogin(ctx context.Context, id string) error
 	UpdateAdminUserPassword(ctx context.Context, arg UpdateAdminUserPasswordParams) error
 	UpdateAdminUserRoleAndStatus(ctx context.Context, arg UpdateAdminUserRoleAndStatusParams) error

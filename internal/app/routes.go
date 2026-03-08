@@ -51,8 +51,11 @@ func (app App) routes() http.Handler {
 	sessionMW := middleware.Session(app.config.SessionSecret, app.sessionStore, app.userStore)
 	r.Group(func(r chi.Router) {
 		r.Use(sessionMW)
+		r.Use(middleware.ForcePasswordChange)
 
 		r.Post("/api/admin/logout", authHandler.Logout)
+		r.Get("/admin/change-password", authHandler.ChangePasswordPage)
+		r.Post("/api/admin/change-password", authHandler.ChangePassword)
 
 		statsHandler := handler.NewStatsHandler(app.logger, web.Templates)
 		r.Get("/admin/stats", statsHandler.Page)

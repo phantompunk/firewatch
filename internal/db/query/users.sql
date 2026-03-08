@@ -6,17 +6,17 @@ INSERT INTO admin_users (id, username, email_hmac, email_encrypted, password_has
 VALUES (?, ?, ?, ?, ?, ?);
 
 -- name: GetAdminUserByEmailHMAC :one
-SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at
+SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at, must_change_password
 FROM admin_users
 WHERE email_hmac = ?;
 
 -- name: GetAdminUserByUsername :one
-SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at
+SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at, must_change_password
 FROM admin_users
 WHERE username = ?;
 
 -- name: GetAdminUserByID :one
-SELECT id, username, role, status, created_at, last_login_at
+SELECT id, username, role, status, created_at, last_login_at, must_change_password
 FROM admin_users
 WHERE id = ?;
 
@@ -30,6 +30,9 @@ UPDATE admin_users SET role = ?, status = ? WHERE id = ?;
 
 -- name: UpdateAdminUserPassword :exec
 UPDATE admin_users SET password_hash = ? WHERE id = ?;
+
+-- name: SetMustChangePassword :exec
+UPDATE admin_users SET must_change_password = ? WHERE id = ?;
 
 -- name: UpdateAdminUserLastLogin :exec
 UPDATE admin_users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?;

@@ -19,6 +19,9 @@ type userGetterByIdentifier interface {
 	GetByUsername(ctx context.Context, username string) (*model.AdminUser, string, error)
 	GetByEmailHMAC(ctx context.Context, email string) (*model.AdminUser, string, error)
 	UpdateLastLogin(ctx context.Context, id string) error
+	UpdatePassword(ctx context.Context, id, hash string) error
+	SetMustChangePassword(ctx context.Context, id string, v bool) error
+	GetPasswordHashByID(ctx context.Context, id string) (string, error)
 }
 
 type sessionCreatorDeleter interface {
@@ -118,7 +121,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 		Expires:  time.Now().Add(4 * time.Hour),
 	})
-	http.Redirect(w, r, "/admin/report", http.StatusSeeOther)
+
+	dest := "/admin/report"
+	if user.MustChangePassword {
+		dest = "/admin/change-password"
+	}
+	http.Redirect(w, r, dest, http.StatusSeeOther)
 }
 
 // AcceptInvitePage renders the accept-invite page for the given token.
@@ -242,4 +250,71 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+type changePasswordPageData struct {
+	Error   string
+	Success bool
+}
+
+// ChangePasswordPage renders the forced-password-change form.
+func (h *AuthHandler) ChangePasswordPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.templates.ExecuteTemplate(w, "change_password.html", changePasswordPageData{}); err != nil {
+		slog.Error("auth: change-password template error", "err", err)
+	}
+}
+
+// ChangePassword handles the forced-password-change form submission.
+func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	currentPassword := r.FormValue("current_password")
+	newPassword := r.FormValue("new_password")
+	confirmPassword := r.FormValue("confirm_password")
+
+	renderError := func(msg string) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = h.templates.ExecuteTemplate(w, "change_password.html", changePasswordPageData{Error: msg})
+	}
+
+	if len(newPassword) < 12 {
+		renderError("New password must be at least 12 characters.")
+		return
+	}
+	if newPassword != confirmPassword {
+		renderError("Passwords do not match.")
+		return
+	}
+
+	userID := appmw.UserIDFromContext(r.Context())
+
+	hash, err := h.users.GetPasswordHashByID(r.Context(), userID)
+	if err != nil || !auth.Verify(hash, currentPassword) {
+		renderError("Current password is incorrect.")
+		return
+	}
+
+	newHash, err := auth.Hash(newPassword)
+	if err != nil {
+		slog.Error("change-password: hash failed", "err", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.users.UpdatePassword(r.Context(), userID, newHash); err != nil {
+		slog.Error("change-password: update failed", "err", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.users.SetMustChangePassword(r.Context(), userID, false); err != nil {
+		slog.Error("change-password: clear flag failed", "err", err)
+	}
+
+	http.Redirect(w, r, "/admin/report", http.StatusSeeOther)
 }

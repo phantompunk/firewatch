@@ -16,8 +16,9 @@ const SessionCookieName = "session"
 type contextKey string
 
 const (
-	contextKeyUserID contextKey = "userID"
-	contextKeyRole   contextKey = "role"
+	contextKeyUserID            contextKey = "userID"
+	contextKeyRole              contextKey = "role"
+	contextKeyMustChangePwd     contextKey = "mustChangePassword"
 )
 
 // SessionReader retrieves the user ID for a session token.
@@ -90,6 +91,7 @@ func Session(key []byte, sessions SessionReader, users userByIDer) func(http.Han
 
 			ctx := context.WithValue(r.Context(), contextKeyUserID, userID)
 			ctx = context.WithValue(ctx, contextKeyRole, user.Role)
+			ctx = context.WithValue(ctx, contextKeyMustChangePwd, user.MustChangePassword)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -110,4 +112,29 @@ func RoleFromContext(ctx context.Context) model.Role {
 // IsSuperAdmin reports whether the authenticated user has the super_admin role.
 func IsSuperAdmin(ctx context.Context) bool {
 	return RoleFromContext(ctx) == model.RoleSuperAdmin
+}
+
+// MustChangePasswordFromContext reports whether the current user must change their password.
+func MustChangePasswordFromContext(ctx context.Context) bool {
+	v, _ := ctx.Value(contextKeyMustChangePwd).(bool)
+	return v
+}
+
+// ForcePasswordChange returns middleware that redirects users who must change
+// their password to /admin/change-password, blocking all other admin pages.
+func ForcePasswordChange(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if MustChangePasswordFromContext(r.Context()) {
+			switch r.URL.Path {
+			case "/admin/change-password",
+				"/api/admin/change-password",
+				"/api/admin/logout":
+				// Allow through
+			default:
+				http.Redirect(w, r, "/admin/change-password", http.StatusSeeOther)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }

@@ -41,10 +41,12 @@ func GenerateToken() string {
 type UserCreator interface {
 	CountAll(ctx context.Context) (int, error)
 	Create(ctx context.Context, id, username, email, passwordHash, role string) error
+	SetMustChangePassword(ctx context.Context, id string, v bool) error
 }
 
 // SeedFirstAdmin creates the initial super_admin account from env vars if the
-// admin_users table is empty.
+// admin_users table is empty. The seeded account is flagged to require a
+// password change on first login.
 func SeedFirstAdmin(ctx context.Context, users UserCreator) {
 	username := os.Getenv("SEED_ADMIN_USERNAME")
 	email := os.Getenv("SEED_ADMIN_EMAIL")
@@ -68,9 +70,13 @@ func SeedFirstAdmin(ctx context.Context, users UserCreator) {
 		return
 	}
 
-	if err := users.Create(ctx, NewID(), username, email, hash, "super_admin"); err != nil {
+	id := NewID()
+	if err := users.Create(ctx, id, username, email, hash, "super_admin"); err != nil {
 		slog.Error("seed: failed to create admin user", "err", err)
 		return
 	}
-	slog.Info("seed: created first super_admin", "username", username)
+	if err := users.SetMustChangePassword(ctx, id, true); err != nil {
+		slog.Error("seed: failed to set must_change_password", "err", err)
+	}
+	slog.Info("seed: created first super_admin — password change required on first login", "username", username)
 }

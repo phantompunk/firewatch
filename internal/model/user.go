@@ -17,10 +17,11 @@ const (
 )
 
 type AdminUser struct {
-	ID          string     `json:"id"`
-	Username    string     `json:"username"`
-	Role        Role       `json:"role"`
-	Status      Status     `json:"status"`
-	CreatedAt   time.Time  `json:"createdAt"`
-	LastLoginAt *time.Time `json:"lastLoginAt,omitempty"`
+	ID                 string     `json:"id"`
+	Username           string     `json:"username"`
+	Role               Role       `json:"role"`
+	Status             Status     `json:"status"`
+	CreatedAt          time.Time  `json:"createdAt"`
+	LastLoginAt        *time.Time `json:"lastLoginAt,omitempty"`
+	MustChangePassword bool       `json:"mustChangePassword,omitempty"`
 }

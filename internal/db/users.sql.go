@@ -69,21 +69,22 @@ func (q *Queries) DeleteAdminUser(ctx context.Context, id string) error {
 }
 
 const getAdminUserByEmailHMAC = `-- name: GetAdminUserByEmailHMAC :one
-SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at
+SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at, must_change_password
 FROM admin_users
 WHERE email_hmac = ?
 `
 
 type GetAdminUserByEmailHMACRow struct {
-	ID             string         `json:"id"`
-	Username       string         `json:"username"`
-	EmailEncrypted []byte         `json:"email_encrypted"`
-	EmailHmac      string         `json:"email_hmac"`
-	PasswordHash   string         `json:"password_hash"`
-	Role           string         `json:"role"`
-	Status         string         `json:"status"`
-	CreatedAt      string         `json:"created_at"`
-	LastLoginAt    sql.NullString `json:"last_login_at"`
+	ID                 string         `json:"id"`
+	Username           string         `json:"username"`
+	EmailEncrypted     []byte         `json:"email_encrypted"`
+	EmailHmac          string         `json:"email_hmac"`
+	PasswordHash       string         `json:"password_hash"`
+	Role               string         `json:"role"`
+	Status             string         `json:"status"`
+	CreatedAt          string         `json:"created_at"`
+	LastLoginAt        sql.NullString `json:"last_login_at"`
+	MustChangePassword int64          `json:"must_change_password"`
 }
 
 func (q *Queries) GetAdminUserByEmailHMAC(ctx context.Context, emailHmac string) (GetAdminUserByEmailHMACRow, error) {
@@ -99,23 +100,25 @@ func (q *Queries) GetAdminUserByEmailHMAC(ctx context.Context, emailHmac string)
 		&i.Status,
 		&i.CreatedAt,
 		&i.LastLoginAt,
+		&i.MustChangePassword,
 	)
 	return i, err
 }
 
 const getAdminUserByID = `-- name: GetAdminUserByID :one
-SELECT id, username, role, status, created_at, last_login_at
+SELECT id, username, role, status, created_at, last_login_at, must_change_password
 FROM admin_users
 WHERE id = ?
 `
 
 type GetAdminUserByIDRow struct {
-	ID          string         `json:"id"`
-	Username    string         `json:"username"`
-	Role        string         `json:"role"`
-	Status      string         `json:"status"`
-	CreatedAt   string         `json:"created_at"`
-	LastLoginAt sql.NullString `json:"last_login_at"`
+	ID                 string         `json:"id"`
+	Username           string         `json:"username"`
+	Role               string         `json:"role"`
+	Status             string         `json:"status"`
+	CreatedAt          string         `json:"created_at"`
+	LastLoginAt        sql.NullString `json:"last_login_at"`
+	MustChangePassword int64          `json:"must_change_password"`
 }
 
 func (q *Queries) GetAdminUserByID(ctx context.Context, id string) (GetAdminUserByIDRow, error) {
@@ -128,26 +131,28 @@ func (q *Queries) GetAdminUserByID(ctx context.Context, id string) (GetAdminUser
 		&i.Status,
 		&i.CreatedAt,
 		&i.LastLoginAt,
+		&i.MustChangePassword,
 	)
 	return i, err
 }
 
 const getAdminUserByUsername = `-- name: GetAdminUserByUsername :one
-SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at
+SELECT id, username, email_encrypted, email_hmac, password_hash, role, status, created_at, last_login_at, must_change_password
 FROM admin_users
 WHERE username = ?
 `
 
 type GetAdminUserByUsernameRow struct {
-	ID             string         `json:"id"`
-	Username       string         `json:"username"`
-	EmailEncrypted []byte         `json:"email_encrypted"`
-	EmailHmac      string         `json:"email_hmac"`
-	PasswordHash   string         `json:"password_hash"`
-	Role           string         `json:"role"`
-	Status         string         `json:"status"`
-	CreatedAt      string         `json:"created_at"`
-	LastLoginAt    sql.NullString `json:"last_login_at"`
+	ID                 string         `json:"id"`
+	Username           string         `json:"username"`
+	EmailEncrypted     []byte         `json:"email_encrypted"`
+	EmailHmac          string         `json:"email_hmac"`
+	PasswordHash       string         `json:"password_hash"`
+	Role               string         `json:"role"`
+	Status             string         `json:"status"`
+	CreatedAt          string         `json:"created_at"`
+	LastLoginAt        sql.NullString `json:"last_login_at"`
+	MustChangePassword int64          `json:"must_change_password"`
 }
 
 func (q *Queries) GetAdminUserByUsername(ctx context.Context, username string) (GetAdminUserByUsernameRow, error) {
@@ -163,6 +168,7 @@ func (q *Queries) GetAdminUserByUsername(ctx context.Context, username string) (
 		&i.Status,
 		&i.CreatedAt,
 		&i.LastLoginAt,
+		&i.MustChangePassword,
 	)
 	return i, err
 }
@@ -254,6 +260,20 @@ type UpdateAdminUserPasswordParams struct {
 
 func (q *Queries) UpdateAdminUserPassword(ctx context.Context, arg UpdateAdminUserPasswordParams) error {
 	_, err := q.db.ExecContext(ctx, updateAdminUserPassword, arg.PasswordHash, arg.ID)
+	return err
+}
+
+const setMustChangePassword = `-- name: SetMustChangePassword :exec
+UPDATE admin_users SET must_change_password = ? WHERE id = ?
+`
+
+type SetMustChangePasswordParams struct {
+	MustChangePassword int64  `json:"must_change_password"`
+	ID                 string `json:"id"`
+}
+
+func (q *Queries) SetMustChangePassword(ctx context.Context, arg SetMustChangePasswordParams) error {
+	_, err := q.db.ExecContext(ctx, setMustChangePassword, arg.MustChangePassword, arg.ID)
 	return err
 }
 

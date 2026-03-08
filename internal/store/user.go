@@ -73,12 +73,13 @@ func (s *UserStore) GetByEmailHMAC(ctx context.Context, email string) (*model.Ad
 		lastLoginAt = &t
 	}
 	u := &model.AdminUser{
-		ID:          row.ID,
-		Username:    row.Username,
-		Role:        model.Role(row.Role),
-		Status:      model.Status(row.Status),
-		CreatedAt:   createdAt,
-		LastLoginAt: lastLoginAt,
+		ID:                 row.ID,
+		Username:           row.Username,
+		Role:               model.Role(row.Role),
+		Status:             model.Status(row.Status),
+		CreatedAt:          createdAt,
+		LastLoginAt:        lastLoginAt,
+		MustChangePassword: row.MustChangePassword != 0,
 	}
 	return u, row.PasswordHash, nil
 }
@@ -106,12 +107,13 @@ func (s *UserStore) GetByUsername(ctx context.Context, username string) (*model.
 		lastLoginAt = &t
 	}
 	u := &model.AdminUser{
-		ID:          row.ID,
-		Username:    row.Username,
-		Role:        model.Role(row.Role),
-		Status:      model.Status(row.Status),
-		CreatedAt:   createdAt,
-		LastLoginAt: lastLoginAt,
+		ID:                 row.ID,
+		Username:           row.Username,
+		Role:               model.Role(row.Role),
+		Status:             model.Status(row.Status),
+		CreatedAt:          createdAt,
+		LastLoginAt:        lastLoginAt,
+		MustChangePassword: row.MustChangePassword != 0,
 	}
 	return u, row.PasswordHash, nil
 }
@@ -137,12 +139,13 @@ func (s *UserStore) GetByID(ctx context.Context, id string) (*model.AdminUser, e
 		lastLoginAt = &t
 	}
 	return &model.AdminUser{
-		ID:          row.ID,
-		Username:    row.Username,
-		Role:        model.Role(row.Role),
-		Status:      model.Status(row.Status),
-		CreatedAt:   createdAt,
-		LastLoginAt: lastLoginAt,
+		ID:                 row.ID,
+		Username:           row.Username,
+		Role:               model.Role(row.Role),
+		Status:             model.Status(row.Status),
+		CreatedAt:          createdAt,
+		LastLoginAt:        lastLoginAt,
+		MustChangePassword: row.MustChangePassword != 0,
 	}, nil
 }
 
@@ -199,6 +202,28 @@ func (s *UserStore) UpdateRoleAndStatus(ctx context.Context, id string, role mod
 		Role:   string(role),
 		Status: string(status),
 		ID:     id,
+	})
+}
+
+// GetPasswordHashByID returns the bcrypt password hash for a user by their ID.
+// Used by the change-password flow to verify the current password.
+func (s *UserStore) GetPasswordHashByID(ctx context.Context, id string) (string, error) {
+	var hash string
+	err := s.db.QueryRowContext(ctx, `SELECT password_hash FROM admin_users WHERE id = ?`, id).Scan(&hash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	return hash, err
+}
+
+func (s *UserStore) SetMustChangePassword(ctx context.Context, id string, v bool) error {
+	val := int64(0)
+	if v {
+		val = 1
+	}
+	return s.q.SetMustChangePassword(ctx, dbpkg.SetMustChangePasswordParams{
+		MustChangePassword: val,
+		ID:                 id,
 	})
 }
 
