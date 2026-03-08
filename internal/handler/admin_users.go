@@ -28,6 +28,7 @@ type allSessionDeleter interface {
 type adminUsersPageData struct {
 	Users        []model.AdminUser
 	IsSuperAdmin bool
+	Nonce        string
 }
 
 // UsersHandler handles super-admin user management.
@@ -54,6 +55,7 @@ func (h *UsersHandler) Page(w http.ResponseWriter, r *http.Request) {
 	data := adminUsersPageData{
 		Users:        users,
 		IsSuperAdmin: appmw.IsSuperAdmin(r.Context()),
+		Nonce:        appmw.NonceFromContext(r.Context()),
 	}
 	if err := h.templates.ExecuteTemplate(w, "admin_users.html", data); err != nil {
 		slog.Error("users: template error", "err", err)

@@ -33,12 +33,14 @@ type inviteStore interface {
 
 type loginPageData struct {
 	Error string
+	Nonce string
 }
 
 type acceptInvitePageData struct {
 	Token string
 	Email string
 	Error string
+	Nonce string
 }
 
 // AuthHandler handles admin authentication.

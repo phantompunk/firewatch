@@ -16,6 +16,7 @@ type adminSettingsPageData struct {
 	*model.AppSettings
 	IsSuperAdmin bool
 	SMTPPassSet  bool
+	Nonce        string
 }
 
 // appSettingsResponse is the JSON shape returned by the Get endpoint.
@@ -87,6 +88,7 @@ func (h *SettingsHandler) Page(w http.ResponseWriter, r *http.Request) {
 		AppSettings:  s,
 		IsSuperAdmin: appmw.IsSuperAdmin(r.Context()),
 		SMTPPassSet:  s.SMTPPass != "",
+		Nonce:        appmw.NonceFromContext(r.Context()),
 	}
 	if err := h.templates.ExecuteTemplate(w, "admin_settings.html", data); err != nil {
 		slog.Error("settings: template error", "err", err)

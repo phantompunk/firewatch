@@ -1,7 +1,7 @@
 {{define "base"}}<!DOCTYPE html>
 <html lang="en">
 <head>
-<script>(function(){var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+<script nonce="{{.Nonce}}">(function(){var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{block "title" .}}Firewatch{{end}}</title>
@@ -38,7 +38,7 @@
     <span class="sidebar-version" title="{{appCommit}}">Version {{appVersion}}</span>
   </div>
 </nav>
-<script>
+<script nonce="{{.Nonce}}">
   document.querySelectorAll('.sidebar-link').forEach(function(a) {
     if (a.getAttribute('href') === location.pathname) a.classList.add('active');
   });

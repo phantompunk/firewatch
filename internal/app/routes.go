@@ -17,6 +17,7 @@ func (app App) routes() http.Handler {
 	r.Use(chimw.RealIP)
 	r.Use(chimw.Recoverer)
 	r.Use(middleware.SecurityHeaders)
+	r.Use(middleware.CSP)
 
 	// Static files
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServerFS(web.StaticFS)))

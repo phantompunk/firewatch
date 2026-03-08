@@ -10,15 +10,16 @@ import (
 
 // StatsPageData holds mock statistics for the admin stats page.
 type StatsPageData struct {
-	IsSuperAdmin      bool
-	TotalReports      int
-	ReportsThisMonth  int
-	ReportsThisWeek   int
-	ReportsToday      int
-	LastSubmission    string
-	AvgPerDay         float64
-	TopFields         []FieldStat
-	RecentActivity    []ActivityEntry
+	IsSuperAdmin     bool
+	TotalReports     int
+	ReportsThisMonth int
+	ReportsThisWeek  int
+	ReportsToday     int
+	LastSubmission   string
+	AvgPerDay        float64
+	TopFields        []FieldStat
+	RecentActivity   []ActivityEntry
+	Nonce            string
 }
 
 // FieldStat represents how often a field appears in reports.
@@ -50,6 +51,7 @@ func NewStatsHandler(logger *slog.Logger, tmpl *template.Template) *StatsHandler
 func (h *StatsHandler) Page(w http.ResponseWriter, r *http.Request) {
 	data := StatsPageData{
 		IsSuperAdmin:     appmw.IsSuperAdmin(r.Context()),
+		Nonce:            appmw.NonceFromContext(r.Context()),
 		TotalReports:     284,
 		ReportsThisMonth: 47,
 		ReportsThisWeek:  12,

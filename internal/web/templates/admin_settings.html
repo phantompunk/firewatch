@@ -6,7 +6,7 @@
   <title>Settings — Firewatch</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <script>(function(){var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+  <script nonce="{{.Nonce}}">(function(){var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
 </head>
 <body>
 <div class="admin-shell">
@@ -152,7 +152,7 @@
   </form>
 </main>
 </div><!-- admin-shell -->
-<script>
+<script nonce="{{.Nonce}}">
 function isPrivatePGPKey(v) {
   return v.includes('-----BEGIN PGP PRIVATE KEY BLOCK-----') ||
          v.includes('-----BEGIN PGP SECRET KEY BLOCK-----');

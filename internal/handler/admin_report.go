@@ -16,6 +16,7 @@ type adminReportPageData struct {
 	SchemaJSON             template.JS
 	SupportedLanguagesJSON template.JS
 	IsSuperAdmin           bool
+	Nonce                  string
 }
 
 type schemaDraftStore interface {
@@ -51,6 +52,7 @@ func (h *AdminReportHandler) Page(w http.ResponseWriter, r *http.Request) {
 		SchemaJSON:             template.JS(jsonBytes),
 		SupportedLanguagesJSON: template.JS(langBytes),
 		IsSuperAdmin:           appmw.IsSuperAdmin(r.Context()),
+		Nonce:                  appmw.NonceFromContext(r.Context()),
 	}
 	if err := h.templates.ExecuteTemplate(w, "admin_report.html", data); err != nil {
 		slog.Error("admin_report: template error", "err", err)

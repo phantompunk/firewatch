@@ -8,7 +8,7 @@
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 </head>
 <body>
-<script>
+<script nonce="{{.Nonce}}">
   (function() {
     var t = localStorage.getItem('theme');
     if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
@@ -76,7 +76,7 @@
   </form>
   <div id="form-message" style="display:none"></div>
 </main>
-<script>
+<script nonce="{{.Nonce}}">
 document.getElementById('theme-toggle').addEventListener('click', function() {
   var isLight = document.documentElement.getAttribute('data-theme') === 'light';
   if (isLight) {

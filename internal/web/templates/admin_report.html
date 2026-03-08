@@ -6,7 +6,7 @@
   <title>Report Form Editor — Firewatch</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <script>(function(){var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+  <script nonce="{{.Nonce}}">(function(){var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
   <script src="/static/sortable.min.js"></script>
   <script src="/static/alpine.min.js" defer></script>
 </head>
@@ -278,7 +278,7 @@
 </div><!-- admin-content -->
 </div><!-- admin-shell -->
 
-<script>
+<script nonce="{{.Nonce}}">
 const SUPPORTED_LANGUAGES = {{.SupportedLanguagesJSON}};
 
 function formEditor(initialSchema) {

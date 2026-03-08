@@ -6,7 +6,7 @@
   <title>User Management — Firewatch</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <script>(function(){var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+  <script nonce="{{.Nonce}}">(function(){var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
 </head>
 <body>
 <div class="admin-shell">
@@ -70,7 +70,7 @@
   </table>
 </main>
 </div><!-- admin-shell -->
-<script>
+<script nonce="{{.Nonce}}">
 async function deleteUser(id, email) {
   if (!confirm('Delete ' + email + '?')) return;
   const r = await fetch('/api/admin/users/' + id, { method: 'DELETE' });

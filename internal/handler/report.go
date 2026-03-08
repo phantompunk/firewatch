@@ -35,6 +35,7 @@ type reportFormData struct {
 	CurrentLang   string
 	IsAdmin       bool
 	FormTimestamp int64
+	Nonce         string
 }
 
 type reportFieldView struct {
@@ -116,6 +117,7 @@ func (h *ReportHandler) Form(w http.ResponseWriter, r *http.Request) {
 		CurrentLang:   lang,
 		IsAdmin:       isAdmin,
 		FormTimestamp: time.Now().Unix(),
+		Nonce:         middleware.NonceFromContext(r.Context()),
 	}
 	if err := h.templates.ExecuteTemplate(w, "report_form.html", data); err != nil {
 		slog.Error("report: template error", "err", err)
