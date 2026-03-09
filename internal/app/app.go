@@ -35,6 +35,7 @@ type App struct {
 	userStore     *store.UserStore
 	sessionStore  *store.SessionStore
 	settingsStore *store.SettingsStore
+	reportStore   *store.ReportStore
 	mailerQueue   *mailer.Queue
 }
 
@@ -58,6 +59,7 @@ func New() (*App, error) {
 
 	schemaStore := store.NewSchemaStore(pool)
 	sessionStore := store.NewSessionStore(pool)
+	reportStore := store.NewReportStore(pool)
 
 	crypter := crypto.New(cfg.SettingsEncryptionKey)
 	settingsStore := store.NewSettingsStore(pool, crypter)
@@ -108,7 +110,8 @@ func New() (*App, error) {
 		userStore:     userStore,
 		sessionStore:  sessionStore,
 		settingsStore: settingsStore,
-		mailerQueue:  q,
+		reportStore:   reportStore,
+		mailerQueue:   q,
 	}, nil
 }
 

@@ -13,6 +13,8 @@ import (
 type Querier interface {
 	CountActiveSuperAdmins(ctx context.Context) (int64, error)
 	CountAdminUsers(ctx context.Context) (int64, error)
+	CountAllReportEvents(ctx context.Context) (int64, error)
+	CountReportEventsSince(ctx context.Context, submittedAt string) (int64, error)
 	CountReportSchemas(ctx context.Context) (int64, error)
 	CreateAdminUser(ctx context.Context, arg CreateAdminUserParams) error
 	CreateInvite(ctx context.Context, arg CreateInviteParams) error
@@ -60,9 +62,12 @@ type Querier interface {
 	GetSessionUserID(ctx context.Context, id string) (string, error)
 	GetSettings(ctx context.Context) ([]byte, error)
 	InsertDraftSchema(ctx context.Context, arg InsertDraftSchemaParams) error
+	InsertReportEvent(ctx context.Context, fieldsFilled string) error
+	LatestReportEventTime(ctx context.Context) (string, error)
 	ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, error)
 	MarkInviteUsed(ctx context.Context, id string) error
 	PromoteLatestDraft(ctx context.Context, updatedBy sql.NullString) error
+	ReportEventsByDay(ctx context.Context, submittedAt string) ([]ReportEventsByDayRow, error)
 	SetMustChangePassword(ctx context.Context, arg SetMustChangePasswordParams) error
 	UpdateAdminUserLastLogin(ctx context.Context, id string) error
 	UpdateAdminUserPassword(ctx context.Context, arg UpdateAdminUserPasswordParams) error

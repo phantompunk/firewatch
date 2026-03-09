@@ -240,6 +240,20 @@ func (q *Queries) ListAdminUsers(ctx context.Context) ([]ListAdminUsersRow, erro
 	return items, nil
 }
 
+const setMustChangePassword = `-- name: SetMustChangePassword :exec
+UPDATE admin_users SET must_change_password = ? WHERE id = ?
+`
+
+type SetMustChangePasswordParams struct {
+	MustChangePassword int64  `json:"must_change_password"`
+	ID                 string `json:"id"`
+}
+
+func (q *Queries) SetMustChangePassword(ctx context.Context, arg SetMustChangePasswordParams) error {
+	_, err := q.db.ExecContext(ctx, setMustChangePassword, arg.MustChangePassword, arg.ID)
+	return err
+}
+
 const updateAdminUserLastLogin = `-- name: UpdateAdminUserLastLogin :exec
 UPDATE admin_users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?
 `
@@ -260,20 +274,6 @@ type UpdateAdminUserPasswordParams struct {
 
 func (q *Queries) UpdateAdminUserPassword(ctx context.Context, arg UpdateAdminUserPasswordParams) error {
 	_, err := q.db.ExecContext(ctx, updateAdminUserPassword, arg.PasswordHash, arg.ID)
-	return err
-}
-
-const setMustChangePassword = `-- name: SetMustChangePassword :exec
-UPDATE admin_users SET must_change_password = ? WHERE id = ?
-`
-
-type SetMustChangePasswordParams struct {
-	MustChangePassword int64  `json:"must_change_password"`
-	ID                 string `json:"id"`
-}
-
-func (q *Queries) SetMustChangePassword(ctx context.Context, arg SetMustChangePasswordParams) error {
-	_, err := q.db.ExecContext(ctx, setMustChangePassword, arg.MustChangePassword, arg.ID)
 	return err
 }
 

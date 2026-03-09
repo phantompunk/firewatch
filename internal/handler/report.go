@@ -15,6 +15,10 @@ import (
 	"github.com/firewatch/internal/model"
 )
 
+type reportEventRecorder interface {
+	RecordEvent(ctx context.Context, filledFieldIDs []string) error
+}
+
 type schemaLoader interface {
 	LiveSchema(ctx context.Context) (*model.ReportSchema, error)
 }
@@ -25,6 +29,7 @@ type ReportHandler struct {
 	schemas   schemaLoader
 	sessions  middleware.SessionReader
 	mailer    mailer.ReportSender
+	events    reportEventRecorder
 	templates *template.Template
 }
 
@@ -49,8 +54,8 @@ type reportFieldView struct {
 	Placeholder string
 }
 
-func NewReportHandler(logger *slog.Logger, schemas schemaLoader, sessions middleware.SessionReader, m mailer.ReportSender, tmpl *template.Template) *ReportHandler {
-	return &ReportHandler{BaseHandler: BaseHandler{logger: logger}, schemas: schemas, sessions: sessions, mailer: m, templates: tmpl}
+func NewReportHandler(logger *slog.Logger, schemas schemaLoader, sessions middleware.SessionReader, m mailer.ReportSender, events reportEventRecorder, tmpl *template.Template) *ReportHandler {
+	return &ReportHandler{BaseHandler: BaseHandler{logger: logger}, schemas: schemas, sessions: sessions, mailer: m, events: events, templates: tmpl}
 }
 
 // Form renders the public report form.
@@ -189,9 +194,20 @@ func (h *ReportHandler) Submit(w http.ResponseWriter, r *http.Request) {
 	// Always use the English email template for admin notifications.
 	emailTmpl := schema.EmailTemplates[model.LangEN]
 	body := mailer.RenderTemplate(emailTmpl, req.Fields)
-	if err := h.mailer.SendReport(body); err!=nil {
+	if err := h.mailer.SendReport(body); err != nil {
 		// Log but do not surface to submitter.
 		slog.Error("report: smtp send failed", "err", err)
+	}
+
+	// Record which fields were filled (no values, just IDs) for aggregate stats.
+	filledIDs := make([]string, 0, len(req.Fields))
+	for _, f := range schema.Fields {
+		if req.Fields[f.ID] != "" {
+			filledIDs = append(filledIDs, f.ID)
+		}
+	}
+	if err := h.events.RecordEvent(r.Context(), filledIDs); err != nil {
+		slog.Error("report: failed to record event", "err", err)
 	}
 
 	w.WriteHeader(http.StatusAccepted)

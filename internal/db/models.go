@@ -10,15 +10,16 @@ import (
 )
 
 type AdminUser struct {
-	ID             string         `json:"id"`
-	Username       string         `json:"username"`
-	EmailHmac      string         `json:"email_hmac"`
-	EmailEncrypted []byte         `json:"email_encrypted"`
-	PasswordHash   string         `json:"password_hash"`
-	Role           string         `json:"role"`
-	Status         string         `json:"status"`
-	CreatedAt      string         `json:"created_at"`
-	LastLoginAt    sql.NullString `json:"last_login_at"`
+	ID                 string         `json:"id"`
+	Username           string         `json:"username"`
+	EmailHmac          string         `json:"email_hmac"`
+	EmailEncrypted     []byte         `json:"email_encrypted"`
+	PasswordHash       string         `json:"password_hash"`
+	Role               string         `json:"role"`
+	Status             string         `json:"status"`
+	CreatedAt          string         `json:"created_at"`
+	LastLoginAt        sql.NullString `json:"last_login_at"`
+	MustChangePassword int64          `json:"must_change_password"`
 }
 
 type AuditLog struct {
@@ -44,6 +45,12 @@ type PasswordResetToken struct {
 	TokenHash string `json:"token_hash"`
 	ExpiresAt string `json:"expires_at"`
 	Used      int64  `json:"used"`
+}
+
+type ReportEvent struct {
+	ID           int64  `json:"id"`
+	SubmittedAt  string `json:"submitted_at"`
+	FieldsFilled string `json:"fields_filled"`
 }
 
 type ReportSchema struct {
