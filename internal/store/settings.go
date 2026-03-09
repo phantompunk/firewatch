@@ -78,5 +78,6 @@ func settingsFromEnv() *model.AppSettings {
 		SMTPFromName:          os.Getenv("SMTP_FROM_NAME"),
 		ReportRetentionPolicy: "forward-only",
 		MaintenanceMode:       true,
+		PGPKey:                os.Getenv("PGP_PUBLIC_KEY"),
 	}
 }
