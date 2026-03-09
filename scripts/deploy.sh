@@ -122,33 +122,6 @@ while true; do
   say "${RED}Password must be at least 12 characters. Try again.${NC}"
 done
 
-echo
-say "SMTP settings are used to send report notifications, password reset"
-say "emails, and admin invitations. You can also set these in the Settings"
-say "UI after first login."
-echo
-
-SMTP_HOST=""
-SMTP_PORT="587"
-SMTP_USER=""
-SMTP_PASS=""
-SMTP_FROM_EMAIL=""
-SMTP_FROM_NAME="Firewatch"
-DESTINATION_EMAIL=""
-
-if confirm "Configure SMTP now?"; then
-  echo
-  SMTP_HOST=$(ask        "SMTP host"                   "smtp.brevo.com")
-  SMTP_PORT=$(ask        "SMTP port"                   "587")
-  SMTP_USER=$(ask        "SMTP username")
-  SMTP_PASS=$(ask_secret "SMTP password")
-  SMTP_FROM_EMAIL=$(ask  "From address"                "no-reply@${DOMAIN}")
-  SMTP_FROM_NAME=$(ask   "From name"                   "Firewatch")
-  DESTINATION_EMAIL=$(ask "Report destination email"   "$ADMIN_EMAIL")
-  validate_email "$SMTP_FROM_EMAIL"
-  validate_email "$DESTINATION_EMAIL"
-fi
-
 # Confirm before doing anything
 echo
 say "Ready to set up Firewatch on ${BOLD}${DOMAIN}${NC}."
@@ -170,6 +143,13 @@ fi
 docker compose version &>/dev/null \
   || err "Docker Compose plugin not found. Install docker-compose-plugin and re-run."
 ok "Docker Compose available"
+
+if docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null | grep -q "^active$"; then
+  skip "Docker Swarm already initialised"
+else
+  docker swarm init --advertise-addr "$(hostname -I | awk '{print $1}')"
+  ok "Docker Swarm initialised"
+fi
 
 # ── Caddy ─────────────────────────────────────────────────────────────────────
 section "Step 2 of 5  ·  Caddy (TLS + reverse proxy)"
@@ -194,22 +174,27 @@ section "Step 3 of 5  ·  Secrets"
 mkdir -p "$SECRETS_DIR"
 chmod 700 "$SECRETS_DIR"
 
-gen_secret() {
+gen_and_store_secret() {
   local name="$1"
   local path="$SECRETS_DIR/$name"
 
-  if [[ -f "$path" ]]; then
-    skip "$name already exists (existing key preserved)"
-  else
-    openssl rand -out "$path" 32
-    chmod 600 "$path"
-    ok "$name generated"
+  if docker secret inspect "$name" &>/dev/null; then
+    skip "Docker secret '$name' already exists"
+    return
   fi
+
+  openssl rand -out "$path" 32
+  chmod 600 "$path"
+  docker secret create "$name" "$path"
+  rm -f "$path"
+  ok "$name created in Docker Swarm"
 }
 
-gen_secret "session_secret"
-gen_secret "settings_encryption_key"
-gen_secret "email_hmac_key"
+gen_and_store_secret "session_secret"
+gen_and_store_secret "settings_encryption_key"
+gen_and_store_secret "email_hmac_key"
+
+rmdir "$SECRETS_DIR" 2>/dev/null || true
 
 # ── Config files ──────────────────────────────────────────────────────────────
 section "Step 4 of 5  ·  Configuration"
@@ -227,15 +212,6 @@ SESSION_SECRET_FILE=/run/secrets/session_secret
 SETTINGS_ENCRYPTION_KEY_FILE=/run/secrets/settings_encryption_key
 EMAIL_HMAC_KEY_FILE=/run/secrets/email_hmac_key
 
-# SMTP — update via Settings UI after first login if left blank
-SMTP_HOST=${SMTP_HOST}
-SMTP_PORT=${SMTP_PORT}
-SMTP_USER=${SMTP_USER}
-SMTP_PASS=${SMTP_PASS}
-SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL}
-SMTP_FROM_NAME=${SMTP_FROM_NAME}
-DESTINATION_EMAIL=${DESTINATION_EMAIL}
-
 # Server
 PORT=8080
 ENV=production
@@ -246,27 +222,39 @@ SEED_ADMIN_USERNAME=admin
 SEED_ADMIN_EMAIL=${ADMIN_EMAIL}
 SEED_ADMIN_PASSWORD=${ADMIN_PASSWORD}
 
-# Transactional email base URLs
+# Base URL for admin invitation emails
 ADMIN_INVITE_BASE_URL=https://${DOMAIN}
-PASSWORD_RESET_BASE_URL=https://${DOMAIN}
 EOF
 chmod 600 "$REPO_DIR/.env.docker"
 ok ".env.docker written"
 
-# docker-compose.yml — bind to loopback only so Caddy is the only entry point
+# docker-compose.yml — Swarm stack; secrets injected from Docker Swarm, not host files
 cat > "$REPO_DIR/docker-compose.yml" <<EOF
+secrets:
+  session_secret:
+    external: true
+  settings_encryption_key:
+    external: true
+  email_hmac_key:
+    external: true
+
 services:
   app:
     image: ghcr.io/phantompunk/firewatch:latest
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
     ports:
       - "0.0.0.0:8080:8080"
     env_file: .env.docker
+    secrets:
+      - session_secret
+      - settings_encryption_key
+      - email_hmac_key
     volumes:
       - firewatch_data:/data
-      - /etc/firewatch/session_secret:/run/secrets/session_secret:ro
-      - /etc/firewatch/settings_encryption_key:/run/secrets/settings_encryption_key:ro
-      - /etc/firewatch/email_hmac_key:/run/secrets/email_hmac_key:ro
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:8080/health"]
       interval: 10s
@@ -296,11 +284,10 @@ section "Step 5 of 5  ·  Starting services"
 
 say "Pulling latest Firewatch image..."
 docker pull ghcr.io/phantompunk/firewatch:latest
-cd "$REPO_DIR"
-docker compose up -d
-ok "Firewatch is running"
+docker stack deploy -c "$REPO_DIR/docker-compose.yml" firewatch
+ok "Firewatch stack deployed"
 
-# Systemd unit so the containers come back after a reboot
+# Systemd unit so the stack comes back after a reboot
 cat > /etc/systemd/system/firewatch.service <<EOF
 [Unit]
 Description=Firewatch
@@ -313,8 +300,8 @@ Requires=docker.service
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=${REPO_DIR}
-ExecStart=/usr/bin/docker compose up -d
-ExecStop=/usr/bin/docker compose down
+ExecStart=/usr/bin/docker stack deploy -c ${REPO_DIR}/docker-compose.yml firewatch
+ExecStop=/usr/bin/docker stack rm firewatch
 TimeoutStartSec=120
 
 [Install]
@@ -359,23 +346,24 @@ echo
 ok "Running at   https://${DOMAIN}"
 ok "TLS          managed automatically by Caddy"
 ok "Persistence  Docker named volume  firewatch_data"
-ok "Secrets      /etc/firewatch/  (back these up separately)"
+ok "Secrets      stored in Docker Swarm (encrypted at rest, not on host filesystem)"
 ok "Auto-start   systemctl status firewatch"
 echo
 say "${BOLD}Next steps:${NC}"
 echo
 say "  1.  Sign in at https://${DOMAIN} with ${ADMIN_EMAIL}"
-say "  2.  Open Settings → configure SMTP if you skipped it above"
+say "  2.  Open Settings → configure SMTP, PGP, and notification email"
 say "  3.  Remove the seed credentials from .env.docker once you're in:"
 echo
 hint "      SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD"
 echo
-hint "      Then run:  docker compose up -d   (picks up the new env file)"
+hint "      Then redeploy:  docker stack deploy -c ${REPO_DIR}/docker-compose.yml firewatch"
 echo
 say "${BOLD}Useful commands:${NC}"
 echo
-hint "  Logs      docker compose -f ${REPO_DIR}/docker-compose.yml logs -f"
+hint "  Logs      docker service logs -f firewatch_app"
+hint "  Status    docker stack ps firewatch"
+hint "  Redeploy  docker stack deploy -c ${REPO_DIR}/docker-compose.yml firewatch"
 hint "  Restart   systemctl restart firewatch"
-hint "  Status    systemctl status firewatch"
 hint "  Caddy     journalctl -u caddy -f"
 echo

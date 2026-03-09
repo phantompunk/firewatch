@@ -9,7 +9,11 @@ secrets:
 services:
   app:
     build: .
-    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
     ports:
       - "127.0.0.1:8080:8080"
     env_file: .env.docker
