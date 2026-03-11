@@ -457,7 +457,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 }
 
 /* Admin layout */
-.admin-main { padding: 2rem; overflow-y: auto; }
+.admin-main { padding: 2rem; overflow-y: auto; flex: 1; min-height: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
 
 /* Split panel */
@@ -513,7 +513,6 @@ button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   margin-bottom: 1.25rem;
-  overflow: hidden;
 }
 .settings-card-header {
   padding: 0.65rem 1.25rem;
@@ -637,13 +636,16 @@ th { font-weight: 600; background: var(--color-surface-light); font-size: 0.85re
 
 /* Modal */
 .modal-overlay {
+  display: none;
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
-  display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
+}
+.modal-overlay.is-open {
+  display: flex;
 }
 .modal {
   background: var(--color-surface);
@@ -1295,6 +1297,65 @@ section h2 { margin-bottom: 1rem; }
 .stats-summary-row:last-child { border-bottom: none; }
 .stats-summary-label { color: var(--color-muted); }
 .stats-summary-value { font-weight: 500; color: var(--color-text); }
+
+/* Health card */
+.stats-health-grid { display: flex; flex-direction: column; }
+.stats-health-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.9rem;
+}
+.stats-health-item:last-child { border-bottom: none; }
+.stats-health-label { color: var(--color-muted); }
+.stats-health-counts { display: flex; gap: 0.5rem; align-items: center; }
+.stats-health-badge {
+  font-weight: 500;
+  font-size: 0.82rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+}
+.stats-health-badge--ok {
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+}
+.stats-health-badge--error {
+  color: #e05252;
+  background: rgba(224, 82, 82, 0.12);
+}
+.stats-health-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.stats-health-dot--ok { background: var(--color-success); }
+.stats-health-dot--error { background: #e05252; }
+ 
+/* Stats responsive */
+@media (max-width: 900px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 700px) {
+  .stats-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stats-field-row {
+    grid-template-columns: 100px 1fr 32px;
+  }
+}
+@media (max-width: 400px) {
+  .stats-cards {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+  }
+  .stat-card { padding: 1rem; }
+  .stat-card-value { font-size: 1.5rem; }
+}
 
 /* Help / FAQ page */
 .help-topbar { margin-bottom: 2rem; }
