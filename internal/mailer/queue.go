@@ -12,19 +12,26 @@ type queuedMessage struct {
 	retries int
 }
 
+// DeliveryRecorder is notified when an email is successfully sent or permanently failed.
+type DeliveryRecorder interface {
+	Record(ctx context.Context, kind, status string)
+}
+
 type Queue struct {
 	mailer   *Mailer
 	ch       chan queuedMessage
 	rate     time.Duration
 	maxRetry int
+	recorder DeliveryRecorder // may be nil
 }
 
-func NewQueue(m *Mailer, rate time.Duration, bufferSize, maxRetry int) *Queue {
+func NewQueue(m *Mailer, rate time.Duration, bufferSize, maxRetry int, recorder DeliveryRecorder) *Queue {
 	return &Queue{
 		mailer:   m,
 		ch:       make(chan queuedMessage, bufferSize),
 		rate:     rate,
 		maxRetry: maxRetry,
+		recorder: recorder,
 	}
 }
 
@@ -64,11 +71,17 @@ func (q *Queue) Enqueue(msg Message) error {
 // attempt sends a message, scheduling a context-aware retry with backoff on failure.
 func (q *Queue) attempt(ctx context.Context, item queuedMessage) {
 	if err := q.mailer.send(item.msg); err == nil {
+		if q.recorder != nil {
+			q.recorder.Record(ctx, "email", "ok")
+		}
 		return
 	}
 
 	if item.retries >= q.maxRetry {
 		slog.Error("mailer: message dropped after max retries", "to", item.msg.To, "subject", item.msg.Subject)
+		if q.recorder != nil {
+			q.recorder.Record(ctx, "email", "error")
+		}
 		return
 	}
 

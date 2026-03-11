@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stats — Firewatch</title>
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 </head>
 <body>
 <div class="admin-shell">
@@ -51,9 +52,9 @@
         {{range .RecentActivity}}
         <div class="stats-bar-col">
           <div class="stats-bar-wrap">
-            <div class="stats-bar-fill" style="height: {{.BarHeight}}px" title="{{.Count}} reports"></div>
+            {{if gt .Count 0}}<div class="stats-bar-fill" style="height: {{.BarHeight}}px" title="{{.Count}} reports"></div>{{end}}
           </div>
-          <div class="stats-bar-count">{{.Count}}</div>
+          <div class="stats-bar-count{{if eq .Count 0}} stats-bar-count--zero{{end}}">{{.Count}}</div>
           <div class="stats-bar-label">{{.Weekday}}</div>
           <div class="stats-bar-date">{{.Date}}</div>
         </div>
@@ -79,6 +80,41 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- System health -->
+  <div class="settings-card stats-health-card">
+    <div class="settings-card-header">
+      <h2>System Health — Last 24h</h2>
+    </div>
+    <div class="stats-health-grid">
+      <div class="stats-health-item">
+        <div class="stats-health-label">Submissions processed</div>
+        <div class="stats-health-counts">
+          {{if gt .SubmitError 0}}
+            <span class="stats-health-dot stats-health-dot--error"></span>
+            <span class="stats-health-badge stats-health-badge--ok">{{.SubmitOK}} ok</span>
+            <span class="stats-health-badge stats-health-badge--error">{{.SubmitError}} failed</span>
+          {{else}}
+            <span class="stats-health-dot stats-health-dot--ok"></span>
+            <span class="stats-health-badge stats-health-badge--ok">{{.SubmitOK}} ok</span>
+          {{end}}
+        </div>
+      </div>
+      <div class="stats-health-item">
+        <div class="stats-health-label">Email deliveries</div>
+        <div class="stats-health-counts">
+          {{if gt .EmailError 0}}
+            <span class="stats-health-dot stats-health-dot--error"></span>
+            <span class="stats-health-badge stats-health-badge--ok">{{.EmailOK}} ok</span>
+            <span class="stats-health-badge stats-health-badge--error">{{.EmailError}} failed</span>
+          {{else}}
+            <span class="stats-health-dot stats-health-dot--ok"></span>
+            <span class="stats-health-badge stats-health-badge--ok">{{.EmailOK}} ok</span>
+          {{end}}
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Summary row -->

@@ -158,11 +158,17 @@ function isPrivatePGPKey(v) {
          v.includes('-----BEGIN PGP SECRET KEY BLOCK-----');
 }
 
-document.getElementById('s-pgp').addEventListener('input', function() {
-  const isPrivate = isPrivatePGPKey(this.value);
+function updatePGPError(value) {
+  const isPrivate = isPrivatePGPKey(value);
   document.getElementById('pgp-key-err').style.display = isPrivate ? '' : 'none';
   document.querySelectorAll('button[type="submit"]').forEach(b => b.disabled = isPrivate);
+}
+
+document.getElementById('s-pgp').addEventListener('input', function() {
+  updatePGPError(this.value);
 });
+
+updatePGPError(document.getElementById('s-pgp').value);
 
 function applyVerification(v) {
   const smtpBadge = document.getElementById('smtp-badge');
@@ -213,6 +219,7 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
     const v = await r.json();
     applyVerification(v);
     setTestEmailReady(true);
+    updatePGPError(document.getElementById('s-pgp').value);
     el.textContent = 'Saved.';
     el.className = 'settings-feedback feedback-ok';
   } else {

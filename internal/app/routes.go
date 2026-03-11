@@ -25,7 +25,7 @@ func (app App) routes() http.Handler {
 	r.Get("/api/health", handler.Health(app.db))
 
 	// Public report form
-	reportHandler := handler.NewReportHandler(app.logger, app.schemaStore, app.sessionStore, app.mailerQueue, app.reportStore, web.Templates)
+	reportHandler := handler.NewReportHandler(app.logger, app.schemaStore, app.sessionStore, app.mailerQueue, app.reportStore, app.deliveryStore, web.Templates)
 	r.Get("/admin", reportHandler.RedirectToLogin)
 	r.Get("/login", reportHandler.RedirectToLogin)
 
@@ -57,7 +57,7 @@ func (app App) routes() http.Handler {
 		r.Get("/admin/change-password", authHandler.ChangePasswordPage)
 		r.Post("/api/admin/change-password", authHandler.ChangePassword)
 
-		statsHandler := handler.NewStatsHandler(app.logger, app.reportStore, app.schemaStore, web.Templates)
+		statsHandler := handler.NewStatsHandler(app.logger, app.reportStore, app.schemaStore, app.deliveryStore, web.Templates)
 		r.Get("/admin/stats", statsHandler.Page)
 
 		adminReportHandler := handler.NewAdminReportHandler(app.logger, app.schemaStore, web.Templates)

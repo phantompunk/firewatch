@@ -15,18 +15,23 @@ import (
 
 // StatsPageData holds statistics for the admin stats page.
 type StatsPageData struct {
-	IsSuperAdmin     bool
-	TotalReports     int
-	ReportsThisMonth int
-	ReportsThisWeek  int
-	ReportsToday     int
-	LastSubmission   string
-	AvgPerDay        float64
-	TopFields        []FieldStat
-	RecentActivity   []ActivityEntry
-	BusiestDay       string
+	IsSuperAdmin       bool
+	TotalReports       int
+	ReportsThisMonth   int
+	ReportsThisWeek    int
+	ReportsToday       int
+	LastSubmission     string
+	AvgPerDay          float64
+	TopFields          []FieldStat
+	RecentActivity     []ActivityEntry
+	BusiestDay         string
 	MostCompletedField string
-	Nonce            string
+	// System health — last 24 hours
+	EmailOK     int
+	EmailError  int
+	SubmitOK    int
+	SubmitError int
+	Nonce       string
 }
 
 // FieldStat represents how often a field appears in reports.
@@ -52,16 +57,21 @@ type statsSchemaLoader interface {
 	LiveSchema(ctx context.Context) (*model.ReportSchema, error)
 }
 
+type deliveryStatsSource interface {
+	Stats24h(ctx context.Context) (*store.DeliveryStats, error)
+}
+
 // StatsHandler handles the admin stats page.
 type StatsHandler struct {
 	BaseHandler
 	templates *template.Template
 	events    statsDataSource
 	schemas   statsSchemaLoader
+	delivery  deliveryStatsSource
 }
 
-func NewStatsHandler(logger *slog.Logger, events statsDataSource, schemas statsSchemaLoader, tmpl *template.Template) *StatsHandler {
-	return &StatsHandler{BaseHandler: BaseHandler{logger: logger}, templates: tmpl, events: events, schemas: schemas}
+func NewStatsHandler(logger *slog.Logger, events statsDataSource, schemas statsSchemaLoader, delivery deliveryStatsSource, tmpl *template.Template) *StatsHandler {
+	return &StatsHandler{BaseHandler: BaseHandler{logger: logger}, templates: tmpl, events: events, schemas: schemas, delivery: delivery}
 }
 
 // Page renders the admin stats page with real data.
@@ -82,6 +92,13 @@ func (h *StatsHandler) Page(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	delivery, err := h.delivery.Stats24h(ctx)
+	if err != nil {
+		slog.Error("stats: failed to load delivery stats", "err", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
 	data := StatsPageData{
 		IsSuperAdmin:     appmw.IsSuperAdmin(ctx),
 		Nonce:            appmw.NonceFromContext(ctx),
@@ -93,6 +110,10 @@ func (h *StatsHandler) Page(w http.ResponseWriter, r *http.Request) {
 		AvgPerDay:        avgPerDay(stats.Total, stats.LastSubmitted),
 		TopFields:        buildFieldStats(stats.FieldCounts, stats.Total, schema),
 		RecentActivity:   buildRecentActivity(stats.DailyActivity),
+		EmailOK:          int(delivery.EmailOK),
+		EmailError:       int(delivery.EmailError),
+		SubmitOK:         int(delivery.SubmitOK),
+		SubmitError:      int(delivery.SubmitError),
 	}
 
 	data.BusiestDay, data.MostCompletedField = buildSummaryExtras(data.RecentActivity, data.TopFields)

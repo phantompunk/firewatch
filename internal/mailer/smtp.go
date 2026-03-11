@@ -178,6 +178,12 @@ func (m *Mailer) CanEncrypt() error {
 		return fmt.Errorf("PGP key parsed but no keys found in keyring")
 	}
 
+	for _, e := range keyring {
+		if e.PrivateKey != nil {
+			return fmt.Errorf("private key detected — paste the public key only")
+		}
+	}
+
 	return nil
 }
 

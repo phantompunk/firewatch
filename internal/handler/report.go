@@ -23,6 +23,10 @@ type schemaLoader interface {
 	LiveSchema(ctx context.Context) (*model.ReportSchema, error)
 }
 
+type deliveryRecorder interface {
+	Record(ctx context.Context, kind, status string)
+}
+
 // ReportHandler handles the public report form and submission.
 type ReportHandler struct {
 	BaseHandler
@@ -30,6 +34,7 @@ type ReportHandler struct {
 	sessions  middleware.SessionReader
 	mailer    mailer.ReportSender
 	events    reportEventRecorder
+	delivery  deliveryRecorder
 	templates *template.Template
 }
 
@@ -54,8 +59,8 @@ type reportFieldView struct {
 	Placeholder string
 }
 
-func NewReportHandler(logger *slog.Logger, schemas schemaLoader, sessions middleware.SessionReader, m mailer.ReportSender, events reportEventRecorder, tmpl *template.Template) *ReportHandler {
-	return &ReportHandler{BaseHandler: BaseHandler{logger: logger}, schemas: schemas, sessions: sessions, mailer: m, events: events, templates: tmpl}
+func NewReportHandler(logger *slog.Logger, schemas schemaLoader, sessions middleware.SessionReader, m mailer.ReportSender, events reportEventRecorder, delivery deliveryRecorder, tmpl *template.Template) *ReportHandler {
+	return &ReportHandler{BaseHandler: BaseHandler{logger: logger}, schemas: schemas, sessions: sessions, mailer: m, events: events, delivery: delivery, templates: tmpl}
 }
 
 // Form renders the public report form.
@@ -197,6 +202,9 @@ func (h *ReportHandler) Submit(w http.ResponseWriter, r *http.Request) {
 	if err := h.mailer.SendReport(body); err != nil {
 		// Log but do not surface to submitter.
 		slog.Error("report: smtp send failed", "err", err)
+		h.delivery.Record(r.Context(), "submission", "error")
+	} else {
+		h.delivery.Record(r.Context(), "submission", "ok")
 	}
 
 	// Record which fields were filled (no values, just IDs) for aggregate stats.

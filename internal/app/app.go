@@ -36,6 +36,7 @@ type App struct {
 	sessionStore  *store.SessionStore
 	settingsStore *store.SettingsStore
 	reportStore   *store.ReportStore
+	deliveryStore *store.DeliveryStore
 	mailerQueue   *mailer.Queue
 }
 
@@ -60,6 +61,7 @@ func New() (*App, error) {
 	schemaStore := store.NewSchemaStore(pool)
 	sessionStore := store.NewSessionStore(pool)
 	reportStore := store.NewReportStore(pool)
+	deliveryStore := store.NewDeliveryStore(pool)
 
 	crypter := crypto.New(cfg.SettingsEncryptionKey)
 	settingsStore := store.NewSettingsStore(pool, crypter)
@@ -78,7 +80,7 @@ func New() (*App, error) {
 		s = &model.AppSettings{}
 	}
 	m := mailer.New(mailer.NewConfigFromSettings(s))
-	q := mailer.NewQueue(m, time.Second, 64, 3)
+	q := mailer.NewQueue(m, time.Second, 64, 3, deliveryStore)
 
 	// Verify SMTP and PGP at startup so the flags reflect current reality.
 	tmp := mailer.New(mailer.NewConfigFromSettings(s))
@@ -111,6 +113,7 @@ func New() (*App, error) {
 		sessionStore:  sessionStore,
 		settingsStore: settingsStore,
 		reportStore:   reportStore,
+		deliveryStore: deliveryStore,
 		mailerQueue:   q,
 	}, nil
 }
